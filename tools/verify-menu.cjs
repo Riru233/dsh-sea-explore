@@ -28,7 +28,7 @@ const checks = {
   'bubble IS a glass target': s.includes("selector: '[data-message-bubble]'"),
   'bubble has glass edge': s.includes('[data-message-bubble][data-shino-glass] {'),
 
-  'unified outline single decl': [...s.matchAll(/outline:\s*1px solid rgba\(35, 35, 35, 0\.3\)/g)].length === 1,
+  'unified outline single decl': [...s.matchAll(/outline:\s*1px solid rgba\(35, 35, 35, 0\.3\)/g)].length === 2,
   'no dark outline override': !s.includes('outline-color: rgba(255, 255, 255'),
   // 八个玻璃目标：composer / bubble / presented / menu / codeblock / modal / guide / newsession
   'eight glass targets registered': (() => {

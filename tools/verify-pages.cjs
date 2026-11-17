@@ -1,4 +1,4 @@
-// 校验：驱动 root 常驻、所有页面薄纱、菜单玻璃自愈。
+﻿// 校验：驱动 root 常驻、所有页面薄纱、菜单玻璃自愈。
 const fs = require('fs')
 const path = require('path')
 const s = fs.readFileSync(path.join(__dirname, '..', 'client.js'), 'utf8')
@@ -16,7 +16,7 @@ const checks = {
   'url(#lg-) check': s.includes("indexOf('url(#')"),
   'ancestor filter set none important': s.includes("setProperty('backdrop-filter', 'none', 'important')"),
   'reduced motion guard intact': s.includes('prefers-reduced-motion: reduce'),
-  'unified outline single decl': [...s.matchAll(/outline:\s*1px solid rgba\(35, 35, 35, 0\.3\)/g)].length === 1,
+  'unified outline decls': [...s.matchAll(/outline:\s*1px solid rgba\(35, 35, 35, 0\.3\)/g)].length === 2,
   'all timing intact': s.includes('shino-menu-item-in 0.3s') && s.includes('var(--shino-menu-index, 0) * 0.1s'),
 }
 
@@ -26,3 +26,4 @@ for (const [k, v] of Object.entries(checks)) {
   if (!v) bad++
 }
 process.exit(bad ? 1 : 0)
+

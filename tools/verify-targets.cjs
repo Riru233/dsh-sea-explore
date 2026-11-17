@@ -27,8 +27,9 @@ const checks = {
   'guide scoped class fallback': s.includes('[data-sidebar-right-guide] button[class$="_entry"]'),
   'no bare _entry selector': !s.includes("'[data-sidebar-right-guide-entry]',\n  'button[class$=\"_entry\"]'"),
 
-  // 菜单冲突：跳过自己的玻璃目标
-  'menu guard skips our glass': s.includes("if (parent.getAttribute('data-shino-glass') !== null)"),
+  // 菜单冲突：跳过自己的玻璃目标（输入框用 data-shino-card 标记）
+  'menu guard skips our glass': /parent\.getAttribute\('data-shino-glass'\) !== null\s*\n?\s*\|\| parent\.getAttribute\('data-shino-card'\) !== null/.test(s)
+    || s.includes("parent.getAttribute('data-shino-card') !== null"),
 
   // 保留项
   'composer still a target': s.includes("{ selector: '[data-composer-card]'"),
@@ -36,11 +37,15 @@ const checks = {
   'modal target': s.includes('{ selector: MODAL_PANEL'),
   'new session target': s.includes('{ selector: NEW_SESSION_BUTTON'),
   'root driver': s.includes("ctx.slots.inject('shell.overlay'"),
-  'unified outline single decl': [...s.matchAll(/outline:\s*1px solid rgba\(35, 35, 35, 0\.3\)/g)].length === 1,
+  'unified outline decls': [...s.matchAll(/outline:\s*1px solid rgba\(35, 35, 35, 0\.3\)/g)].length === 2,
   'timing intact': s.includes('shino-menu-item-in 0.3s') && s.includes('var(--shino-menu-index, 0) * 0.1s'),
   // 旧版滤镜子层方案已废弃，但清理代码保留（用于摘掉残留）。
   'no filter-child creation': !s.includes("setAttribute('data-shino-filter'"),
-  'filter-child cleanup kept': s.includes("querySelectorAll(':scope > [data-shino-filter]')"),
+  'card filter layer cleanup kept': s.includes("querySelectorAll(':scope > [data-shino-card-filter]')"),
+  'card filter layer inserted': s.includes("setAttribute('data-shino-card-filter'") && s.includes('insertFilterLayer'),
+  'filter layer has no light': /if \(target\.light && target\.filterLayer !== true\)/.test(s),
+  'menu outline on surface': /\[data-menu-material\] \{[\s\S]{0,300}?outline: 1px solid rgba\(35, 35, 35, 0\.3\)/.test(s),
+  'menu material layer has no outline rule': !/\[data-menu-material\] > \[aria-hidden="true"\]:first-child \{[\s\S]{0,200}?outline:/.test(s),
 }
 
 let bad = 0

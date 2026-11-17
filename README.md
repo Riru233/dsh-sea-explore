@@ -170,11 +170,16 @@ The reference decoration is four declarations, all of them reproduced verbatim:
 | `outline` | `1px solid rgba(35,35,35,0.3)` | dark separation ring (no layout cost) |
 | `box-shadow` | `0 8px 16px rgba(40,40,40,0.2)` | drop shadow |
 
-All three glass surfaces — composer card, user bubble, menu — share **one**
-rule, so the `outline` is identical everywhere and is **not** altered by the
-dark palette; it is the glass's physical contour, not a theme colour. Only the
-shadow deepens in dark mode (`rgba(0,0,0,0.45)`), because a shadow tuned for a
-light page disappears on a dark one.
+All glass surfaces share **one** rule, so the `outline` is identical everywhere
+and is **not** altered by the dark palette; it is the glass's physical contour,
+not a theme colour. Only the shadow deepens in dark mode
+(`rgba(0,0,0,0.45)`), because a shadow tuned for a light page disappears on a
+dark one.
+
+Menus are the one exception to *where* the ring is drawn: their material layer
+is an `inset:0` child, so its own `outline` would be clipped away by the
+surface. The ring is therefore drawn on the menu **surface** itself
+(`[data-menu-material]`), while the material layer only carries the fill.
 
 Two deliberate notes:
 
@@ -277,27 +282,43 @@ in native), so the rule matches the `centerCol` token in either shape while
 excluding lookalikes such as `centerColIcon`, and pins the scope with
 `frame:has(> centerCol)`.
 
-### The trigger menu (`/` and `@` candidates)
+### The trigger menu and the composer's own glass
 
-The input-trigger menu (`data-trigger-menu`) is rendered **inside** the composer
-card — the host's `MenuView` positions itself with
-`closest('[data-composer-card]')`. Since the composer card is a glass target
-and therefore a Backdrop Root, the trigger menu's material layer could only
-sample content *inside* that card, and its refraction was dead.
+The input-trigger menu (`data-trigger-menu`) — the `/` and `@` candidate list and
+the one the toolbar's "add files and run commands" button opens — is rendered
+**inside** the composer card; the host's `MenuView` positions itself with
+`closest('[data-composer-card]')`.
 
-The bundle lifts the composer card's own filter while the trigger menu is
-present:
+Per the CSS spec, an element with a `backdrop-filter` is itself a **Backdrop
+Root**, and its descendants' filters sample only that root. So a filter on the
+composer card would cut the popup's refraction off; and the only way to save
+the popup was to switch the card's filter off — which took the composer's glass
+with it.
 
-```css
-[data-composer-card]:has([data-trigger-menu]) {
-  backdrop-filter: none !important;
-}
+The bundle instead moves the composer's filter onto a dedicated child layer:
+
+```
+[data-composer-card]              ← no backdrop-filter of its own
+├── [data-shino-card-filter]      ← the filter lives here (z-index: -1)
+└── [data-composer-overlay]
+    └── [data-trigger-menu]       ← the popup, outside the filter layer
 ```
 
-The card is the only filtered element on that ancestor chain (the overlay
-wrapper and the menu surface carry no filter), so removing it restores the
-menu's sampling of the page. The composer loses its refraction only while the
-candidate menu is open.
+The filter layer is inserted as the **first child**, so it and the popup are
+siblings that contain neither each other: each is its own backdrop root and
+neither truncates the other. The composer's glass survives, and the popup
+refracts normally. The card's translucent fill moved onto the filter layer so
+the layer is visible above the (now transparent) card background.
+
+The light/glow attribute sits on the **parent** card, not on the filter layer:
+the layer covers the whole surface, so a glow on it would be swallowed by the
+card's own translucent fill.
+
+`tools/verify-card-filter.cjs` asserts the placement in jsdom: exactly one
+filter layer, it is the first child, it does not contain the popup, the popup
+branch does not contain it, the card itself carries no `backdrop-filter`, the
+layer carries the filter and no light, and **no filter layer appears anywhere in
+the chat transcript or the context panels**.
 
 ### Scoping the guide entries
 

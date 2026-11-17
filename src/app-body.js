@@ -39,10 +39,9 @@ const LG = __ShinoLiquidGlass;
 // 全局统一的玻璃边饰。outline 在所有玻璃表面上保持同一个值，
 // 不随深浅色切换——它是玻璃的物理轮廓，不是主题色。
 const GLASS_EDGE_CSS = `
-[data-composer-card][data-shino-glass],
+[data-composer-card][data-shino-card],
 [data-message-bubble][data-shino-glass],
 [data-presented-file][data-shino-glass],
-[data-menu-material] > [aria-hidden="true"]:first-child,
 [role="dialog"][aria-modal="true"][data-shino-glass],
 [data-sidebar-right-guide-entry][data-shino-glass],
 [data-shino-guide-entry][data-shino-glass],
@@ -57,11 +56,22 @@ const GLASS_EDGE_CSS = `
   box-shadow: 0 8px 16px rgba(40, 40, 40, 0.2) !important;
 }
 
-/* 暗色只加深投影，outline 一律保持上面那条。 */
-body[data-ds-dark-theme] [data-composer-card][data-shino-glass],
+/* 菜单：边饰画在**表面**上，不在材质层上。
+   材质层是 inset:0 的子元素，它的 outline 会被表面裁掉、看不见；
+   表面才是菜单真正有形状的那一层。 */
+[data-menu-material] {
+  border: 0 !important;
+  border-top: 1px solid #fff6 !important;
+  border-bottom: 1px solid #fff6 !important;
+  outline: 1px solid rgba(35, 35, 35, 0.3) !important;
+  box-shadow: 0 8px 16px rgba(40, 40, 40, 0.2) !important;
+}
+
+/* 暗色只加深投影，outline 一律保持上面那条（输入框卡片也在其中）。 */
+body[data-ds-dark-theme] [data-composer-card][data-shino-card],
 body[data-ds-dark-theme] [data-message-bubble][data-shino-glass],
 body[data-ds-dark-theme] [data-presented-file][data-shino-glass],
-body[data-ds-dark-theme] [data-menu-material] > [aria-hidden="true"]:first-child,
+body[data-ds-dark-theme] [data-menu-material],
 body[data-ds-dark-theme] [role="dialog"][aria-modal="true"][data-shino-glass],
 body[data-ds-dark-theme] [data-sidebar-right-guide-entry][data-shino-glass],
 body[data-ds-dark-theme] [data-shino-guide-entry][data-shino-glass],
@@ -74,8 +84,29 @@ body[data-ds-dark-theme] [data-question-reply] > div > div[data-shino-glass] {
 `;
 
 const GLASS_CSS = GLASS_EDGE_CSS + `
-/* 输入框卡片：把实色底掏空，交给玻璃。边饰由上面统一给。 */
-[data-composer-card][data-shino-glass] {
+/* 输入框卡片：滤镜由它自己的滤镜层承担（见 [data-shino-card-filter]），
+   这里只负责边饰。卡片自身不带 backdrop-filter，也不带背景色——
+   这样渲染在卡片内部的弹窗不会被它截断采样，滤镜层也能真正压在最底层。 */
+[data-composer-card][data-shino-card] {
+  position: relative;
+  /* 建立层叠上下文：滤镜层才能稳定地待在卡片的最底层，
+     而不会跑到卡片外面或压住卡片内容。 */
+  isolation: isolate;
+  background: transparent !important;
+  /* 边饰由全局统一的 GLASS_EDGE_CSS 给出，不在这里重复。 */
+}
+
+/* 输入框的滤镜层：铺满卡片，压在卡片的最底层。
+   它与弹窗在 DOM 上互不包含，因此两者的 backdrop-filter 互不截断。
+   z-index:-1 让它落在卡片背景之下、内容之上——滤镜采样的是它背后
+   （页面）的像素，玻璃的折射因此仍能看到壁纸。
+   半透明的底色也放在这一层，卡片自身保持透明。 */
+[data-shino-card-filter] {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
   background: color-mix(in srgb, var(--dsw-specific-input-major) 22%, transparent) !important;
 }
 
@@ -214,8 +245,13 @@ body[data-ds-dark-theme] [class$="centerCol"] {
 
 @media (prefers-reduced-transparency: reduce) {
   /* 系统要求降低透明时退回可读的实底，宁可没有玻璃。 */
-  [data-composer-card][data-shino-glass] {
+  [data-composer-card][data-shino-card] {
     background: var(--dsw-specific-input-major) !important;
+  }
+  [data-shino-card-filter] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: transparent !important;
   }
   [data-presented-file][data-shino-glass] {
     background: var(--dsw-alias-card-fill) !important;
@@ -260,8 +296,9 @@ body[data-ds-dark-theme] [class$="centerCol"] {
 const MENU_ENTER = '[data-menu-material][data-menu-phase="enter"], [data-menu-material]:not([data-menu-phase])';
 
 const MENU_GLASS_CSS = `
-/* 玻璃层：只掏空宿主的实色底。边饰（border / outline / box-shadow）
-   由上面全局统一的 GLASS_EDGE_CSS 给出，不在这里重复。 */
+/* 菜单的玻璃层：只掏空宿主的实色底。
+   边饰（border / outline / box-shadow）画在**表面**上——材质层是 inset:0
+   的子元素，它的 outline 会被表面裁掉、看不见。 */
 [data-menu-material] > [aria-hidden="true"]:first-child {
   box-sizing: border-box;
   background: color-mix(in srgb, var(--dsw-specific-menu) 26%, transparent) !important;
@@ -278,19 +315,13 @@ body[data-ds-dark-theme] [data-menu-material] > [aria-hidden="true"]:first-child
   opacity: 1 !important;
 }
 
-/* 输入触发器菜单（/ 与 @ 的候选菜单，data-trigger-menu）渲染在
-   composer card 内部（宿主 MenuView 用 closest('[data-composer-card]')
-   定位自己）。composer card 是玻璃目标、带 backdrop-filter，会成为
-   Backdrop Root，于是这个菜单的材质层只能采样它内部的内容，折射失效。
+/* 输入触发器菜单（/ 与 @ 的候选菜单、以及工具栏 launcher 弹出的那个）
+   渲染在 composer card 内部（宿主 MenuView 用 closest('[data-composer-card]')
+   定位自己）。
 
-   解除 composer card 自身的滤镜即可让菜单材质层重新采样到页面背景：
-   它是菜单材质的祖先链上唯一一个带 backdrop-filter 的元素
-   （中间的 overlay 层与菜单表面都不带滤镜）。
-   代价是菜单弹出期间输入框卡片本身没有折射，菜单关闭后自动恢复。 */
-[data-composer-card]:has([data-trigger-menu]) {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
+   composer card 的滤镜被移到了它自己的 [data-shino-card-filter] 子层上
+   （规则在 GLASS_CSS 里），该层与弹窗在 DOM 上互不包含，因此两者的
+   backdrop-filter 互不截断——弹窗的折射正常，输入框的玻璃也还在。 */
 
 /* 弹入 / 弹出：从中间缩放，挂在表面（玻璃层与内容层的共同父级）上。
    不用 fill-mode: both —— 动画结束后残留的 transform 会让表面成为
@@ -447,7 +478,12 @@ const REPLY_BUBBLE = '[data-question-reply] > div > div';
 // 要玻璃化的宿主元素。都用宿主自己发布的稳定属性选择，不依赖哈希类名。
 // mark 是给无法直接用属性定位的目标补的标记，CSS 侧据此写透明化规则。
 const GLASS_TARGETS = [
-  { selector: '[data-composer-card]', light: true },
+  // 输入框卡片：滤镜不挂在它自己身上，而是挂在它的一个专用子层上
+  // （见 paintGlass 里的 insertCardFilter）。原因是弹窗
+  // （[data-trigger-menu]）渲染在卡片内部，而带 backdrop-filter 的元素
+  // 本身就是 backdrop root，会截断弹窗的采样；把滤镜移到与弹窗并列的
+  // 兄弟子层上，两者互不包含、互不影响。
+  { selector: '[data-composer-card]', light: true, filterLayer: true },
   // 用户发送的消息气泡：只玻璃化气泡自身。
   // 它在聊天流内部、不包含整个流，所以不会被下面「包含聊天流则跳过」
   // 的判定拦下。
@@ -516,7 +552,11 @@ function paintGlass(root) {
     // 祖先是容器（消息节点、流容器），不是要玻璃化的表面。
     const nodes = target.deepest ? deepestOnly(found) : found;
     for (const el of nodes) {
-      if (el.getAttribute('data-shino-glass') !== null) continue;
+      // 幂等判断：普通目标看自己的标记；filterLayer 目标看滤镜层是否已存在
+      // （它的标记在滤镜层上，不在目标自身）。
+      if (target.filterLayer === true) {
+        if (el.querySelector(':scope > [data-shino-card-filter]') !== null) continue
+      } else if (el.getAttribute('data-shino-glass') !== null) continue
       // 防止玻璃落到「整片聊天流」的容器上。
       //
       // 判定：元素若是聊天流的**祖先**（包含整个流），就不能玻璃化。
@@ -532,25 +572,67 @@ function paintGlass(root) {
       // 目标用的是语义属性时（如 :has() 反向定位的代码块），
       // 补一个自己的标记，CSS 才能精确地只改这一层。
       if (target.mark !== undefined) el.setAttribute(target.mark, '');
-      el.setAttribute('data-shino-glass', '');
-      el.setAttribute('data-glass', '');
-      if (target.light) el.setAttribute('data-glass-light', '');
+
+      // filterLayer 目标：滤镜不挂在目标自身，而是插一个专用子层。
+      //
+      // 为什么要这样：CSS 规范里，带 backdrop-filter 的元素**本身就是**
+      // backdrop root，其后代滤镜只能采样它内部的内容。输入框卡片里
+      // 渲染着弹窗（[data-trigger-menu]），若滤镜挂在卡片上，弹窗的折射
+      // 就被截断；而要救弹窗又只能关掉卡片的滤镜——输入框的玻璃也没了。
+      //
+      // 把滤镜移到一个与弹窗**并列**的兄弟子层上（插为第一个子元素），
+      // 两者互不包含：输入框仍有玻璃，弹窗也不受它的 backdrop root 影响。
+      let glassHost = el
+      if (target.filterLayer === true) {
+        glassHost = insertFilterLayer(el)
+        if (glassHost === null) continue
+        // 卡片自身的标记：CSS 用它定位半透明底与边饰。
+        el.setAttribute('data-shino-card', '')
+        // 光晕与边饰归父层：滤镜层只负责滤镜本身。
+        el.setAttribute('data-glass-light', '')
+      } else {
+        el.setAttribute('data-shino-glass', '')
+      }
+
+      glassHost.setAttribute('data-glass', '')
+      // light 只给父层，滤镜层不参与光晕（它铺满卡片、几乎覆盖整个表面，
+      // 光晕落在它上面会被卡片自身的半透明底吃掉）。
+      if (target.light && target.filterLayer !== true) glassHost.setAttribute('data-glass-light', '')
       // 每个目标独立兜住异常。
       // makeGlass 需要 2D canvas 来生成位移图；一旦它抛错（例如画布不可用），
       // 若不加隔离，整个扫描循环会被打断，后面的目标全部得不到玻璃——
       // 表现为「输入框的玻璃莫名丢了」。
       try {
-        LG.makeGlass(el);
+        LG.makeGlass(glassHost)
       } catch (error) {
         // 这个表面暂时做不了玻璃：撤掉标记，交给下一轮扫描重试。
-        el.removeAttribute('data-shino-glass');
-        el.removeAttribute('data-glass');
-        el.removeAttribute('data-glass-light');
+        glassHost.removeAttribute('data-glass')
+        glassHost.removeAttribute('data-glass-light')
+        if (target.filterLayer === true) glassHost.remove()
       }
     }
   }
 
   protectMenuGlass();
+}
+
+/**
+ * 在目标元素里插入一个专用的滤镜层，并把它作为第一个子元素。
+ *
+ * 第一个子元素的位置很重要：它保证滤镜层与随后的内容（尤其是渲染在
+ * 卡片内部的弹窗）在 DOM 上是并列的兄弟，而不是彼此的祖先。
+ *
+ * @param host - 需要玻璃滤镜的目标元素。
+ * @returns 滤镜层元素；已存在时直接返回。
+ */
+function insertFilterLayer (host) {
+  const existing = host.querySelector(':scope > [data-shino-card-filter]')
+  if (existing !== null) return existing
+
+  const layer = document.createElement('div')
+  layer.setAttribute('data-shino-card-filter', '')
+  host.insertBefore(layer, host.firstChild)
+  return layer
 }
 
 /**
@@ -563,10 +645,12 @@ function stripGlass(el) {
   el.removeAttribute('data-glass-light');
   el.removeAttribute('data-shino-code-block');
   el.removeAttribute('data-shino-guide-entry');
+  el.removeAttribute('data-shino-card');
   el.style.removeProperty('backdrop-filter');
   el.style.removeProperty('-webkit-backdrop-filter');
-  const filters = el.querySelectorAll(':scope > [data-shino-filter]');
-  for (const f of filters) f.remove();
+  // 摘掉输入框的滤镜层（它承载着滤镜与位移图）。
+  const cardFilters = el.querySelectorAll(':scope > [data-shino-card-filter]');
+  for (const f of cardFilters) f.remove();
 }
 /* ----------------------------------------------- 菜单玻璃的自愈保护 */
 /*
@@ -623,7 +707,9 @@ function protectMenuGlass() {
     let parent = layer.parentElement;
     while (parent !== null && parent !== document.body) {
       // 宿主自己的玻璃目标：它的滤镜必须保留，不能压制。
-      if (parent.getAttribute('data-shino-glass') !== null) {
+      // 输入框卡片用 data-shino-card 标记（滤镜在它的滤镜层上）。
+      if (parent.getAttribute('data-shino-glass') !== null
+        || parent.getAttribute('data-shino-card') !== null) {
         parent = parent.parentElement;
         continue;
       }

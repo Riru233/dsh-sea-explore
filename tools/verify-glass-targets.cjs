@@ -36,26 +36,36 @@ globalThis.getComputedStyle = (el) => ({
 globalThis.requestAnimationFrame = fn => { fn(); return 1 }
 globalThis.MutationObserver = class { observe () {} disconnect () {} }
 // ResizeObserver 桩：liquidglass 依赖它触发 update() 写滤镜，
-// 真实浏览器首次观察时会立即回调一次。
+// 真实浏览器首次观察时会立即回调一次。新插入的元素在 jsdom 里没有
+// 布局（尺寸为 0），这里补上，模拟真实浏览器的一次布局。
 globalThis.ResizeObserver = class {
   constructor (cb) { this.cb = cb }
-  observe (el) { this.cb([{ target: el, contentRect: { width: 300, height: 60 } }], this) }
+  observe (el) {
+    if (el.offsetWidth === 0) {
+      Object.defineProperty(el, 'offsetWidth', { value: 300, configurable: true })
+      Object.defineProperty(el, 'offsetHeight', { value: 60, configurable: true })
+      el.getBoundingClientRect = () => ({ left: 0, top: 0, width: 300, height: 60 })
+    }
+    this.cb([{ target: el, contentRect: { width: el.offsetWidth, height: el.offsetHeight } }], this)
+  }
   disconnect () {}
 }
 globalThis.document = d
 
-// canvas 桩：liquidglass 需要 2D context 生成位移图
+// canvas 桩：liquidglass 需要 2D context 生成位移图。
+// 只对 canvas 标签特殊处理；其它标签用 jsdom 原生实现（滤镜层需要真的 DOM 节点）。
 const noCanvas = process.argv.includes('--no-canvas')
 if (!noCanvas) {
   const ctxStub = {
     createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h }),
     putImageData: () => {},
   }
+  const origCreate = d.createElement.bind(d)
   d.createElement = tag => {
-    const el = {
-      tagName: tag, width: 0, height: 0, style: {},
-      getContext: () => ctxStub,
-      toDataURL: () => 'data:image/png;base64,',
+    const el = origCreate(tag)
+    if (tag === 'canvas') {
+      el.getContext = () => ctxStub
+      el.toDataURL = () => 'data:image/png;base64,'
     }
     return el
   }
@@ -96,12 +106,18 @@ function check (label, ok, detail) {
   if (!ok) bad++
 }
 
-check('composer card has glass marker', card.getAttribute('data-shino-glass') !== null)
-// 浏览器会把 url(#lg-0) 序列化成 url("#lg-0")，两种都算命中
-const cardFilter = card.style.backdropFilter || ''
-check('composer card has inline filter',
-  cardFilter.includes('url(#') || cardFilter.includes('url("#'), cardFilter || '(none)')
-check('composer card filter has blur', cardFilter.includes('blur('), cardFilter)
+// 输入框的滤镜在专用子层上（卡片自身不带滤镜）
+const cardFilterLayer = card.querySelector(':scope > [data-shino-card-filter]')
+check('composer card has a filter layer', cardFilterLayer !== null)
+check('composer card itself has NO backdrop-filter',
+  (card.style.getPropertyValue('-webkit-backdrop-filter') || card.style.backdropFilter || '') === '')
+const layerFilter = cardFilterLayer
+  ? (cardFilterLayer.style.getPropertyValue('-webkit-backdrop-filter') || cardFilterLayer.style.backdropFilter || '')
+  : ''
+check('filter layer HAS the inline filter',
+  layerFilter.includes('blur(') || layerFilter.includes('url('), layerFilter || '(none)')
+check('filter layer has NO data-glass-light', cardFilterLayer && cardFilterLayer.getAttribute('data-glass-light') === null)
+check('parent card carries data-glass-light', card.getAttribute('data-glass-light') !== null)
 check('presented card has glass marker', presented.getAttribute('data-shino-glass') !== null)
 check('menu material has glass marker', nmat.getAttribute('data-glass') !== null)
 
@@ -129,20 +145,15 @@ for (const el of d2.querySelectorAll('*')) {
 globalThis.document = d2
 // 只让第一个目标失败：card2 首次成图时 canvas 不可用，
 // presented2 之后正常。
-let firstCall = true
-d2.createElement = tag => ({
-  tagName: tag, width: 0, height: 0, style: {},
-  getContext: () => (firstCall ? null : { createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h }), putImageData: () => {} }),
-  toDataURL: () => 'data:image/png;base64,',
-})
-const origCreate = d2.createElement
+const origCreate2 = d2.createElement.bind(d2)
 let canvasCalls = 0
 d2.createElement = tag => {
-  const el = origCreate(tag)
+  const el = origCreate2(tag)
   if (tag === 'canvas') {
     canvasCalls++
     const bad = canvasCalls === 1
     el.getContext = () => (bad ? null : { createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h }), putImageData: () => {} })
+    el.toDataURL = () => 'data:image/png;base64,'
   }
   return el
 }
