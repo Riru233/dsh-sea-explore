@@ -45,7 +45,7 @@ var __ShinoLiquidGlass = (() => {
   const isChromiumRenderer = /Chrome\/|Chromium\/|Edg\/|OPR\//.test(__ua);
   let uid = 0;
   const SVGNS = "http://www.w3.org/2000/svg";
-  const global = { strength: 2.5, blur: 2.5, sat: 180, bend: 15, gamma: 2 };
+  const global = { strength: 2.5, blur: 1, sat: 180, bend: 15, gamma: 2 };
   const LIQUID_GLASS_DEFAULTS = { ...global };
   const LIQUID_GLASS_DISTORTION_SUPPORTED = isWindowsPlatform || isApplePlatform && isChromiumRenderer();
   const LIQUID_GLASS_BLOCKED_BY_GPU_PREFERENCE = typeof window !== "undefined" && localStorage.getItem("gpu_preference") === "low-power";

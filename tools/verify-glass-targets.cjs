@@ -8,6 +8,11 @@ const dom = new JSDOM(`<!doctype html><html><body>
   <div data-composer-card id="card"></div>
   <div data-presented-file id="presented"></div>
   <div data-menu-material="translucent" id="nsurf"><div aria-hidden="true" id="nmat"></div></div>
+  <div data-question-key="k1" id="question"></div>
+  <div data-question-reply="c1" id="reply">
+    <div id="reply-width"><div id="reply-bubble"></div></div>
+    <div id="reply-actions"></div>
+  </div>
 </body></html>`)
 const d = dom.window.document
 
@@ -99,6 +104,14 @@ check('composer card has inline filter',
 check('composer card filter has blur', cardFilter.includes('blur('), cardFilter)
 check('presented card has glass marker', presented.getAttribute('data-shino-glass') !== null)
 check('menu material has glass marker', nmat.getAttribute('data-glass') !== null)
+
+// 模型提问卡与上下文里的用户回答气泡
+const question = d.getElementById('question')
+const replyBubble = d.getElementById('reply-bubble')
+const replyActions = d.getElementById('reply-actions')
+check('question card has glass marker', question.getAttribute('data-shino-glass') !== null)
+check('reply bubble has glass marker', replyBubble.getAttribute('data-shino-glass') !== null)
+check('reply actions row NOT glassed', replyActions.getAttribute('data-shino-glass') === null)
 
 // 关键回归：某个目标 makeGlass 抛错时，扫描循环不能被中断，
 // 后面的目标仍要拿到玻璃。这正是「输入框的玻璃莫名丢了」的成因。

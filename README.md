@@ -48,13 +48,15 @@ stubbed-DOM smoke test exercises `clampLiquidGlassParam` (clamping to bounds),
 
 ## 1. Liquid glass
 
-Eight host surfaces get glass:
+Ten host surfaces get glass:
 
 | Surface | Selector | Host stylesheet / source |
 |---|---|---|
 | Composer input card | `[data-composer-card]` | `InputBar.tsx` |
 | User message bubble | `[data-message-bubble]` | `UserContent.tsx` |
 | Presented file card | `[data-presented-file]` | `PresentedFileCard.tsx` |
+| Model question card | `[data-question-key]` | `QuestionComposer.tsx` |
+| Answer bubble in context | `[data-question-reply] > div > div` | `QuestionReplyView.tsx` |
 | Menu glass layer | `[data-menu-material] > [aria-hidden]:first-child` | frontend bundle (`Ed`) |
 | Code block in a reply | `div:has(> div > [data-code-block-banner])` | frontend bundle (`FenceCodeBlock`) |
 | Any modal panel | `[role="dialog"][aria-modal="true"]` | shared dialog primitive |
@@ -112,6 +114,11 @@ follows the active palette instead of hard-coding a colour:
 - Composer card: 22% of its fill.
 - User bubble: 38% of `--dsw-specific-bubble` (58% in the dark palette, where the
   base colour is already deep and body text needs more backing).
+- Model question card: 24% of `--dsw-specific-input-major` (the host's own
+  fill for that card).
+- Answer bubble in context: 38% of `--dsw-specific-bubble`, like the user
+  bubble. The reply's own row also carries an actions line (time, copy); only
+  the bubble inside it is glassed, not that line.
 - Presented file card: 26% of `--dsw-alias-card-fill` at rest and 38% of
   `--dsw-alias-card-fill-hover` on hover. The hover state matters: the host
   repaints the card with an opaque hover fill, which would otherwise make the

@@ -47,7 +47,9 @@ const GLASS_EDGE_CSS = `
 [data-sidebar-right-guide-entry][data-shino-glass],
 [data-shino-guide-entry][data-shino-glass],
 [data-shino-new-session][data-shino-glass],
-[data-shino-code-block][data-shino-glass] {
+[data-shino-code-block][data-shino-glass],
+[data-question-key][data-shino-glass],
+[data-question-reply] > div > div[data-shino-glass] {
   border: 0 !important;
   border-top: 1px solid #fff6 !important;
   border-bottom: 1px solid #fff6 !important;
@@ -64,7 +66,9 @@ body[data-ds-dark-theme] [role="dialog"][aria-modal="true"][data-shino-glass],
 body[data-ds-dark-theme] [data-sidebar-right-guide-entry][data-shino-glass],
 body[data-ds-dark-theme] [data-shino-guide-entry][data-shino-glass],
 body[data-ds-dark-theme] [data-shino-new-session][data-shino-glass],
-body[data-ds-dark-theme] [data-shino-code-block][data-shino-glass] {
+body[data-ds-dark-theme] [data-shino-code-block][data-shino-glass],
+body[data-ds-dark-theme] [data-question-key][data-shino-glass],
+body[data-ds-dark-theme] [data-question-reply] > div > div[data-shino-glass] {
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45) !important;
 }
 `;
@@ -123,9 +127,23 @@ body[data-ds-dark-theme] [data-message-bubble][data-shino-glass] {
   background: transparent !important;
 }
 
+/* 模型提问的卡片：宿主底色是 --dsw-specific-input-major（实色），
+   掏空后交给玻璃。 */
+[data-question-key][data-shino-glass] {
+  background: color-mix(in srgb, var(--dsw-specific-input-major) 24%, transparent) !important;
+}
+
+/* 上下文里用户回答提问的气泡：底色同用户气泡（--dsw-specific-bubble）。 */
+[data-question-reply] > div > div[data-shino-glass] {
+  background: color-mix(in srgb, var(--dsw-specific-bubble) 38%, transparent) !important;
+}
+
+body[data-ds-dark-theme] [data-question-reply] > div > div[data-shino-glass] {
+  background: color-mix(in srgb, var(--dsw-specific-bubble) 58%, transparent) !important;
+}
+
 /* 通用模态框：设置面板、确认框等。面板底色是实色，
-   overlay 遮罩保持原样（它需要压暗后面）。 */
-[role="dialog"][aria-modal="true"][data-shino-glass] {
+   overlay 遮罩保持原样（它需要压暗后面）。 */[role="dialog"][aria-modal="true"][data-shino-glass] {
   background: color-mix(in srgb, var(--dsw-alias-bg-overlay) 34%, transparent) !important;
 }
 
@@ -417,6 +435,15 @@ const MODAL_PANEL = '[role="dialog"][aria-modal="true"]';
 // 这里改用侧边栏自己的模块类名：wtg9ga_newSession 只出现在这一个按钮上。
 const NEW_SESSION_BUTTON = 'button[class*="_newSession"]';
 
+// 模型向用户提问的卡片（QuestionComposer 的 frame）。
+const QUESTION_CARD = '[data-question-key]';
+
+// 上下文里用户回答模型提问的那张卡（QuestionReplyView 的 row）。
+// 真正要玻璃化的是 row 里那张气泡：row > bubbleWidth > UserMessageBubble。
+// UserMessageBubble 自己没有 data 属性（只有 _bubble_<hash> 这类哈希类名），
+// 所以按 DOM 位置定位；row 的第二层是操作按钮行（时间、复制），不能要。
+const REPLY_BUBBLE = '[data-question-reply] > div > div';
+
 // 要玻璃化的宿主元素。都用宿主自己发布的稳定属性选择，不依赖哈希类名。
 // mark 是给无法直接用属性定位的目标补的标记，CSS 侧据此写透明化规则。
 const GLASS_TARGETS = [
@@ -433,6 +460,10 @@ const GLASS_TARGETS = [
   // 回复里的代码块。deepest：只取候选里最深的那些（代码块容器本身），
   // 把 :has() 向上匹配带出的祖先（消息节点、流容器）剔掉。
   { selector: CODE_BLOCK, light: true, mark: 'data-shino-code-block', deepest: true },
+  // 模型向用户提问的卡片。
+  { selector: QUESTION_CARD, light: true },
+  // 上下文里用户回答提问的气泡。
+  { selector: REPLY_BUBBLE, light: true },
   // 通用模态框：设置面板、确认框、图片查看器都走这套。
   // [aria-modal="true"] 把它和菜单、tooltip 区分开。
   { selector: MODAL_PANEL, light: true },
