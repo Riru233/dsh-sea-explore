@@ -249,8 +249,13 @@ Only two places can break it, and both are already handled:
 
 | Where | Effect on glass | Handling |
 |---|---|---|
-| Surface (glass layer's parent) | breaks it | pop animation uses no `fill-mode`, so no leftover `opacity`/`transform` |
+| Surface (glass layer's parent) | breaks it | the pop animation is serialised before the item stagger, so the items never animate while the parent is scaling (see above) |
 | Glass layer itself | breaks it | pinned with `animation: none; opacity: 1 !important` |
+
+The host's own fade applies to the surface's direct children only — the
+material layer and the content layer — not to the items. The material layer is
+the content layer's **sibling**, so the content layer's fade never truncates
+the glass layer's sampling.
 
 ### fill-mode choice
 
@@ -282,7 +287,30 @@ in native), so the rule matches the `centerCol` token in either shape while
 excluding lookalikes such as `centerColIcon`, and pins the scope with
 `frame:has(> centerCol)`.
 
-### The trigger menu and the composer's own glass
+### Menu animation: pop first, then the staggered items
+
+A transform on an ancestor makes Chromium composite that whole subtree into its
+own layer, and a descendant's `backdrop-filter` can then only sample that
+layer. So a menu whose **items** animate while the **parent** is scaling shows
+no glass for the whole animation and only regains it when everything settles.
+
+The bundle therefore serialises the two stages:
+
+1. **Pop** (0.32s): the surface scales from 0.92 to 1.
+2. **Stagger** (0.3s per item, 0.1s apart): the items slide in from
+   `translateX(-10px)` with a fade, starting only after the pop finished.
+
+During the pop the items run a placeholder animation (`shino-menu-item-hold`)
+that changes neither `transform` nor `opacity`, so the items never become a
+composited layer themselves. Once the pop is over the parent has no transform,
+no layer is forced, and the glass is intact while the items slide in.
+
+Timing: item 1 starts at 0.32s, item 2 at 0.42s, item 3 at 0.52s, each running
+0.3s — adjacent items overlap by 0.2s, and the last one finishes at 0.82s.
+
+The pop itself still forces layerisation for its 0.32s — that is inherent to
+scaling, and the only way to remove it would be to drop the pop animation.
+`tools/verify-menu-timing.cjs` asserts the serialisation and the arithmetic.
 
 The input-trigger menu (`data-trigger-menu`) — the `/` and `@` candidate list and
 the one the toolbar's "add files and run commands" button opens — is rendered

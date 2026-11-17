@@ -296,7 +296,7 @@ body[data-ds-dark-theme] [class$="centerCol"] {
 const MENU_ENTER = '[data-menu-material][data-menu-phase="enter"], [data-menu-material]:not([data-menu-phase])';
 
 const MENU_GLASS_CSS = `
-/* 菜单的玻璃层：只掏空宿主的实色底。
+/* 菜单材质层：掏空宿主的实色底。
    边饰（border / outline / box-shadow）画在**表面**上——材质层是 inset:0
    的子元素，它的 outline 会被表面裁掉、看不见。 */
 [data-menu-material] > [aria-hidden="true"]:first-child {
@@ -304,8 +304,23 @@ const MENU_GLASS_CSS = `
   background: color-mix(in srgb, var(--dsw-specific-menu) 26%, transparent) !important;
 }
 
+/* 右键菜单：玻璃直接挂在 surface 自身（带 data-shino-menu-surface）。
+   材质层的滤镜和底色都不要再叠一层——surface 自己是 backdrop root，
+   缩放动画挂在它身上不会截断它自己的滤镜。 */
+[data-context-menu][data-shino-menu-surface] {
+  background: color-mix(in srgb, var(--dsw-specific-menu) 26%, transparent) !important;
+}
+
+[data-context-menu][data-shino-menu-surface] > [aria-hidden="true"]:first-child {
+  background: transparent !important;
+}
+
 /* 夜间模式：菜单材质层调浅，暗色底上少压一层，背景图才能透上来。 */
 body[data-ds-dark-theme] [data-menu-material] > [aria-hidden="true"]:first-child {
+  background: color-mix(in srgb, var(--dsw-specific-menu) 18%, transparent) !important;
+}
+
+body[data-ds-dark-theme] [data-context-menu][data-shino-menu-surface] {
   background: color-mix(in srgb, var(--dsw-specific-menu) 18%, transparent) !important;
 }
 
@@ -325,10 +340,21 @@ body[data-ds-dark-theme] [data-menu-material] > [aria-hidden="true"]:first-child
 
 /* 弹入 / 弹出：从中间缩放，挂在表面（玻璃层与内容层的共同父级）上。
    不用 fill-mode: both —— 动画结束后残留的 transform 会让表面成为
-   定位包含块，子元素的 anchor() 定位与 sticky 行为都会跟着变。 */
+   定位包含块，子元素的 anchor() 定位与 sticky 行为都会跟着变。
+
+   关于 transform 与滤镜的关系（这里是要点）：
+   父级带 transform 动画时，Chromium 会把整棵子树合成到独立图层，
+   后代的 backdrop-filter 就只能采样该图层内部——玻璃在动画期间消失、
+   动画结束才恢复。
+
+   所以两段动画必须**串行**：父级先缩放出来，缩放结束后菜单项才做
+   错位动画（错位动画的 delay 加上缩放时长，见下面的 --shino-menu-pop-ms）。
+   父级缩放期间没有错位动画在跑，但父级自己也在缩放，玻璃同样会被
+   图层化——这是缩放动画的固有代价，无法在保留缩放的同时消除；
+   串行的好处是错位阶段（父级已静止）玻璃是正常的。 */
 ${MENU_ENTER} {
   transform-origin: center;
-  animation: shino-menu-pop-in 0.32s cubic-bezier(0.2, 1.25, 0.35, 1);
+  animation: shino-menu-pop-in var(--shino-menu-pop-ms, 0.32s) cubic-bezier(0.2, 1.25, 0.35, 1);
 }
 
 [data-menu-material][data-menu-phase="dismiss"] {
@@ -361,10 +387,37 @@ ${MENU_ENTER} {
    用 backwards 而不是 both：backwards 在 delay 期间保持起始帧，
    避免先闪一下最终位置；而 forwards 会把 opacity: 1 / translateX(0)
    永久钉在元素上（动画级优先级会盖住宿主给禁用项的低透明度），
-   结束帧本来就等于天然值，交还 CSS 更安全。 */
+   结束帧本来就等于天然值，交还 CSS 更安全。
+
+   延迟要加上父级缩放的时长（--shino-menu-pop-ms），让两段动画串行：
+   父级先缩放出来，缩放结束后菜单项才开始错位。
+
+   但仅靠 delay 不够：父级缩放期间，菜单项若已带着
+   translateX/opacity 的动画（backwards 会保持起始帧），依然会触发
+   图层化，玻璃照样失效。
+
+   所以错位动画改为「两段式」：
+     · 第一段 shino-menu-item-hold —— 缩放期间保持无 transform、无 opacity
+       变化（只是把时间填满），不产生任何图层化；
+     · 第二段 shino-menu-item-in —— 缩放结束后才开始真正的错位。
+   父级此时已无 transform，玻璃正常，物品再逐条滑入。 */
 ${MENU_ENTER} [role="menuitem"] {
-  animation: shino-menu-item-in 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
-  animation-delay: calc(var(--shino-menu-index, 0) * 0.1s);
+  animation:
+    shino-menu-item-in 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) backwards,
+    shino-menu-item-hold var(--shino-menu-pop-ms, 0.32s) linear backwards;
+  /* 两个动画同时跑，各自的 delay 决定何时开始：
+     hold 立即开始、填满缩放时长；item-in 等到缩放结束再开始。 */
+  animation-delay:
+    calc(var(--shino-menu-pop-ms, 0.32s) + var(--shino-menu-index, 0) * 0.1s),
+    0s;
+}
+
+/* 缩放期间的占位动画：菜单项在父级缩放期间完全不显示内容
+   （opacity:0 且不产生 transform），这样弹出时先只看到玻璃表面，
+   缩放结束后错位动画才开始把每一项淡入并滑入。 */
+@keyframes shino-menu-item-hold {
+  from { transform: none; opacity: 0; }
+  to { transform: none; opacity: 0; }
 }
 
 @keyframes shino-menu-item-in {
@@ -415,7 +468,22 @@ ${MENU_ENTER} [role="menuitem"] {
 // 菜单的玻璃层：宿主在 [data-menu-material] 里放了一个 aria-hidden 的
 // 绝对定位层（inset:0, z-index:-1），原本只挂普通 blur。它尺寸可测、
 // 又正好铺满菜单表面，因此交给 makeGlass 换成带折射的液态玻璃。
-const MENU_GLASS_LAYER = '[data-menu-material] > [aria-hidden="true"]:first-child';
+const MENU_GLASS_LAYER = '[data-menu-material]:not([data-context-menu]) > [aria-hidden="true"]:first-child';
+
+// 右键菜单（data-context-menu）专用：宿主把 data-context-menu 与
+// data-menu-material 挂在**同一个 surface 元素**上。
+//
+// 玻璃必须挂到 surface 自身、而不是它内部的材质层。原因：
+// 元素自身的 transform 动画不会截断它自己的 backdrop-filter，
+// 但会截断**后代**的。缩放动画挂在 surface 上，若玻璃在材质层（后代），
+// 缩放期间玻璃就失效；玻璃挂在 surface 自身，缩放全程折射都在。
+// 因此这类菜单直接玻璃化 surface，并把材质层的滤镜关掉。
+const CONTEXT_MENU_SURFACE = '[data-context-menu][data-menu-material]';
+
+/** 判断一个菜单目标是否应该把玻璃挂到 surface 本身。 */
+function isContextMenuSurface (el) {
+  return el.hasAttribute('data-context-menu')
+}
 
 // 代码块：宿主只给 banner 打了 data-code-block-banner，外层是哈希类名。
 //
@@ -488,9 +556,12 @@ const GLASS_TARGETS = [
   // 它在聊天流内部、不包含整个流，所以不会被下面「包含聊天流则跳过」
   // 的判定拦下。
   { selector: '[data-message-bubble]', light: true },
-  // 菜单的玻璃层：宿主给它挂的是普通 blur（--dsw-menu-backdrop-filter），
-  // 交给 makeGlass 换成带折射的液态玻璃。inset:0 铺满表面，尺寸可测。
-  { selector: MENU_GLASS_LAYER, light: false },
+  // 菜单：
+  //   · 右键菜单（data-context-menu）玻璃挂 surface 自身，缩放期间滤镜不断
+  //   · 其它菜单玻璃挂宿主自带的材质层（inset:0）
+  // 两者都在这里列出，运行时按 isContextMenuSurface 决定挂哪一层。
+  { selector: CONTEXT_MENU_SURFACE, light: false, menuSurface: true },
+  { selector: MENU_GLASS_LAYER, light: false, menuLayer: true },
   // 产物文件卡片：present 工具在对话里铺出来的那一排，高度 60px。
   { selector: '[data-presented-file]', light: true },
   // 回复里的代码块。deepest：只取候选里最深的那些（代码块容器本身），
@@ -590,6 +661,21 @@ function paintGlass(root) {
         el.setAttribute('data-shino-card', '')
         // 光晕与边饰归父层：滤镜层只负责滤镜本身。
         el.setAttribute('data-glass-light', '')
+      } else if (target.menuSurface === true) {
+        // 右键菜单：滤镜挂在 surface 自身（它就是带缩放动画的那一层）。
+        // 元素自身的 transform 不截断它自己的 backdrop-filter，
+        // 所以缩放全程玻璃都在。给 surface 打标记，CSS 据此关掉材质层的
+        // 宿主滤镜，并把底色/边饰加到 surface 上。
+        el.setAttribute('data-shino-menu-surface', '')
+        // 材质层的宿主滤镜要关掉，避免两层 backdrop-filter 叠加。
+        const mat = el.querySelector(':scope > [aria-hidden="true"]:first-child')
+        if (mat !== null) {
+          mat.style.setProperty('backdrop-filter', 'none', 'important')
+          mat.style.setProperty('-webkit-backdrop-filter', 'none', 'important')
+        }
+      } else if (target.menuLayer === true) {
+        // 普通菜单：玻璃挂在材质层；给 surface 打标记供 CSS 画边饰。
+        if (el.parentElement !== null) el.parentElement.setAttribute('data-shino-menu-surface', '')
       } else {
         el.setAttribute('data-shino-glass', '')
       }
