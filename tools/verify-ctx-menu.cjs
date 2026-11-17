@@ -25,8 +25,10 @@ check('surface has translucent fill rule',
   /\[data-context-menu\]\[data-shino-menu-surface\][\s\S]{0,120}?background: color-mix/.test(code))
 check('material layer transparent under context menu',
   /\[data-context-menu\]\[data-shino-menu-surface\] > \[aria-hidden="true"\]:first-child[\s\S]{0,80}?background: transparent/.test(code))
-check('hold keyframe hides content (opacity 0)',
-  /@keyframes shino-menu-item-hold \{[\s\S]{0,100}?opacity: 0;/.test(code))
+check('item animation starts in parallel (no pop delay)',
+  /animation-delay: calc\(var\(--shino-menu-index, 0\) \* 0\.1s\)/.test(code)
+  && !code.includes('--shino-menu-pop-ms'))
+check('no hold keyframe', !code.includes('shino-menu-item-hold'))
 check('stagger still 0.3s / 0.1s',
   code.includes('shino-menu-item-in 0.3s') && code.includes('--shino-menu-index, 0) * 0.1s'))
 

@@ -1143,19 +1143,14 @@ window.__ModuleLoader__.load({
          不用 fill-mode: both —— 动画结束后残留的 transform 会让表面成为
          定位包含块，子元素的 anchor() 定位与 sticky 行为都会跟着变。
 
-         关于 transform 与滤镜的关系（这里是要点）：
-         父级带 transform 动画时，Chromium 会把整棵子树合成到独立图层，
-         后代的 backdrop-filter 就只能采样该图层内部——玻璃在动画期间消失、
-         动画结束才恢复。
-
-         所以两段动画必须**串行**：父级先缩放出来，缩放结束后菜单项才做
-         错位动画（错位动画的 delay 加上缩放时长，见下面的 --shino-menu-pop-ms）。
-         父级缩放期间没有错位动画在跑，但父级自己也在缩放，玻璃同样会被
-         图层化——这是缩放动画的固有代价，无法在保留缩放的同时消除；
-         串行的好处是错位阶段（父级已静止）玻璃是正常的。 */
+         关于 transform 与滤镜的关系：
+         玻璃已经挂在 surface 自身，元素自身的 transform 不截断它自己的
+         backdrop-filter；缩放与错位都是 surface 上的动画，菜单项又是玻璃层
+         的侄辈（不参与玻璃层的采样祖先链），所以两段动画同时进行。
+         用户看到的是玻璃表面一边缩放、内容一边逐条滑入。 */
       ${MENU_ENTER} {
         transform-origin: center;
-        animation: shino-menu-pop-in var(--shino-menu-pop-ms, 0.32s) cubic-bezier(0.2, 1.25, 0.35, 1);
+        animation: shino-menu-pop-in 0.32s cubic-bezier(0.2, 1.25, 0.35, 1);
       }
 
       [data-menu-material][data-menu-phase="dismiss"] {
@@ -1190,35 +1185,12 @@ window.__ModuleLoader__.load({
          永久钉在元素上（动画级优先级会盖住宿主给禁用项的低透明度），
          结束帧本来就等于天然值，交还 CSS 更安全。
 
-         延迟要加上父级缩放的时长（--shino-menu-pop-ms），让两段动画串行：
-         父级先缩放出来，缩放结束后菜单项才开始错位。
-
-         但仅靠 delay 不够：父级缩放期间，菜单项若已带着
-         translateX/opacity 的动画（backwards 会保持起始帧），依然会触发
-         图层化，玻璃照样失效。
-
-         所以错位动画改为「两段式」：
-           · 第一段 shino-menu-item-hold —— 缩放期间保持无 transform、无 opacity
-             变化（只是把时间填满），不产生任何图层化；
-           · 第二段 shino-menu-item-in —— 缩放结束后才开始真正的错位。
-         父级此时已无 transform，玻璃正常，物品再逐条滑入。 */
+          父级缩放 (0.32s) 从这里同时开始：玻璃挂在 surface 自身，
+          元素自身的 transform 不截断它自己的 backdrop-filter，
+          所以两段动画同步进行、互不干扰——表面一边缩放，内容一边滑入。 */
       ${MENU_ENTER} [role="menuitem"] {
-        animation:
-          shino-menu-item-in 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) backwards,
-          shino-menu-item-hold var(--shino-menu-pop-ms, 0.32s) linear backwards;
-        /* 两个动画同时跑，各自的 delay 决定何时开始：
-           hold 立即开始、填满缩放时长；item-in 等到缩放结束再开始。 */
-        animation-delay:
-          calc(var(--shino-menu-pop-ms, 0.32s) + var(--shino-menu-index, 0) * 0.1s),
-          0s;
-      }
-
-      /* 缩放期间的占位动画：菜单项在父级缩放期间完全不显示内容
-         （opacity:0 且不产生 transform），这样弹出时先只看到玻璃表面，
-         缩放结束后错位动画才开始把每一项淡入并滑入。 */
-      @keyframes shino-menu-item-hold {
-        from { transform: none; opacity: 0; }
-        to { transform: none; opacity: 0; }
+        animation: shino-menu-item-in 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+        animation-delay: calc(var(--shino-menu-index, 0) * 0.1s);
       }
 
       @keyframes shino-menu-item-in {

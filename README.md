@@ -249,7 +249,7 @@ Only two places can break it, and both are already handled:
 
 | Where | Effect on glass | Handling |
 |---|---|---|
-| Surface (glass layer's parent) | breaks it | the pop animation is serialised before the item stagger, so the items never animate while the parent is scaling (see above) |
+| Surface (glass layer's parent) | builds a backdrop root | the glass is hung on the surface itself, so the surface's own pop transform does not truncate its own filter |
 | Glass layer itself | breaks it | pinned with `animation: none; opacity: 1 !important` |
 
 The host's own fade applies to the surface's direct children only — the
@@ -308,10 +308,10 @@ An element's own `transform` does not truncate its **own** `backdrop-filter` —
 only that of its descendants. Keeping the filter and the pop on the same
 element therefore preserves the refraction for the whole animation.
 
-The staggered items stay hidden during the pop: `shino-menu-item-hold` pins them
-to `opacity: 0` while the parent scales, and the real slide-in starts only after
-the pop finishes. The user sees the empty glass surface first, then the items
-slide in.
+The pop (surface transform) and the item stagger run **in parallel**: the glass
+rides on the surface, whose own transform does not touch its own filter, and the
+items are the glass layer's nephews, outside its sampling ancestor chain. The
+user sees the glass scale up while the rows slide in together.
 
 ### Submenus must not swallow the parent menu's glass
 
@@ -327,28 +327,22 @@ liquidglass mark `data-glass` — and stops climbing once it reaches another
 `tools/verify-ctx-menu.cjs` and `tools/verify-menu-timing.cjs` cover all of this
 in jsdom.
 
-A transform on an ancestor makes Chromium composite that whole subtree into its
-own layer, and a descendant's `backdrop-filter` can then only sample that
-layer. So a menu whose **items** animate while the **parent** is scaling shows
-no glass for the whole animation and only regains it when everything settles.
+A transform on an ancestor makes Chromium composite that subtree into its own
+layer, truncating a **descendant's** backdrop-filter. The glass is therefore hung
+on the surface itself, not on a child material layer: an element's own transform
+does not truncate its own filter. With filter and pop on the same element, both
+animations run in parallel without losing the glass.
 
-The bundle therefore serialises the two stages:
+- **Pop** (0.32s): the surface scales from 0.92 to 1.
+- **Stagger** (0.3s per item, 0.1s apart): the items slide in from
+  `translateX(-10px)` with a fade, starting together with the pop.
+  `animation-fill-mode: backwards` holds the start frame through each item's
+  delay, so nothing flashes into its final position first.
 
-1. **Pop** (0.32s): the surface scales from 0.92 to 1.
-2. **Stagger** (0.3s per item, 0.1s apart): the items slide in from
-   `translateX(-10px)` with a fade, starting only after the pop finished.
-
-During the pop the items run a placeholder animation (`shino-menu-item-hold`)
-that changes neither `transform` nor `opacity`, so the items never become a
-composited layer themselves. Once the pop is over the parent has no transform,
-no layer is forced, and the glass is intact while the items slide in.
-
-Timing: item 1 starts at 0.32s, item 2 at 0.42s, item 3 at 0.52s, each running
-0.3s — adjacent items overlap by 0.2s, and the last one finishes at 0.82s.
-
-The pop itself still forces layerisation for its 0.32s — that is inherent to
-scaling, and the only way to remove it would be to drop the pop animation.
-`tools/verify-menu-timing.cjs` asserts the serialisation and the arithmetic.
+Timing: item 1 runs 0–0.3s, item 2 0.1–0.4s, item 3 0.2–0.5s — adjacent items
+overlap by 0.2s. The surface finishes scaling at 0.32s, while the stagger is
+still finishing. `tools/verify-menu-timing.cjs` asserts the parallel start and
+the arithmetic.
 
 The input-trigger menu (`data-trigger-menu`) — the `/` and `@` candidate list and
 the one the toolbar's "add files and run commands" button opens — is rendered
