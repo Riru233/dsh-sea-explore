@@ -840,6 +840,8 @@ window.__ModuleLoader__.load({
       // 不随深浅色切换——它是玻璃的物理轮廓，不是主题色。
       const GLASS_EDGE_CSS = `
       [data-composer-card][data-shino-glass],
+      [data-message-bubble][data-shino-glass],
+      [data-presented-file][data-shino-glass],
       [data-menu-material] > [aria-hidden="true"]:first-child,
       [role="dialog"][aria-modal="true"][data-shino-glass],
       [data-sidebar-right-guide-entry][data-shino-glass],
@@ -855,6 +857,8 @@ window.__ModuleLoader__.load({
 
       /* 暗色只加深投影，outline 一律保持上面那条。 */
       body[data-ds-dark-theme] [data-composer-card][data-shino-glass],
+      body[data-ds-dark-theme] [data-message-bubble][data-shino-glass],
+      body[data-ds-dark-theme] [data-presented-file][data-shino-glass],
       body[data-ds-dark-theme] [data-menu-material] > [aria-hidden="true"]:first-child,
       body[data-ds-dark-theme] [role="dialog"][aria-modal="true"][data-shino-glass],
       body[data-ds-dark-theme] [data-sidebar-right-guide-entry][data-shino-glass],
@@ -869,6 +873,36 @@ window.__ModuleLoader__.load({
       /* 输入框卡片：把实色底掏空，交给玻璃。边饰由上面统一给。 */
       [data-composer-card][data-shino-glass] {
         background: color-mix(in srgb, var(--dsw-specific-input-major) 22%, transparent) !important;
+      }
+
+      /* 用户回复的气泡：液态玻璃 + 半透明底。
+         宿主底色是 --dsw-specific-bubble（实色），不掏空的话 backdrop-filter
+         采样不到背后的内容，玻璃会退化成一块平色。
+         用 color-mix 从同一个 token 派生，深浅色各自成立。 */
+      [data-message-bubble][data-shino-glass] {
+        background: color-mix(in srgb, var(--dsw-specific-bubble) 38%, transparent) !important;
+      }
+
+      /* 夜间模式：底色本就深，比例提高以保证正文可读。 */
+      body[data-ds-dark-theme] [data-message-bubble][data-shino-glass] {
+        background: color-mix(in srgb, var(--dsw-specific-bubble) 58%, transparent) !important;
+      }
+
+      /* 产物卡片（present 工具的文件卡片）：60px 高的小方块，底色是
+         --dsw-alias-card-fill（经 .root 的 --deliverable-fill 间接引用）。
+         fill 与 hover 一起换成半透明，否则鼠标移上去会盖回实色、玻璃突然消失。 */
+      [data-presented-file][data-shino-glass] {
+        background: color-mix(in srgb, var(--dsw-alias-card-fill) 26%, transparent) !important;
+        transition: background-color 120ms ease;
+      }
+
+      [data-presented-file][data-shino-glass]:hover {
+        background: color-mix(in srgb, var(--dsw-alias-card-fill-hover) 38%, transparent) !important;
+      }
+
+      /* 卡片里的文件类型图标块，同属玻璃表面，一起掏空以保持层次一致。 */
+      [data-presented-file][data-shino-glass] [class*="fileIcon"] {
+        background: color-mix(in srgb, var(--dsw-alias-card-tile-fill) 30%, transparent) !important;
       }
 
       /* 回复里的代码块：容器底色是 --dsl-code-block-background
@@ -893,6 +927,12 @@ window.__ModuleLoader__.load({
          overlay 遮罩保持原样（它需要压暗后面）。 */
       [role="dialog"][aria-modal="true"][data-shino-glass] {
         background: color-mix(in srgb, var(--dsw-alias-bg-overlay) 34%, transparent) !important;
+      }
+
+      /* 夜间模式：菜单与模态框的遮罩同样调浅。
+         暗色底本身就重，再压一层会把背景压成纯黑，玻璃失去可折射的内容。 */
+      body[data-ds-dark-theme] [role="dialog"][aria-modal="true"][data-shino-glass] {
+        background: color-mix(in srgb, var(--dsw-alias-bg-overlay) 24%, transparent) !important;
       }
 
       /* 右侧栏引导页的入口按钮：宿主底色是 --dsw-alias-bg-layer-1，
@@ -936,6 +976,16 @@ window.__ModuleLoader__.load({
         background: color-mix(in srgb, var(--dsw-alias-bg-base) 58%, transparent) !important;
       }
 
+      /* 夜间模式：遮罩调浅。
+         暗色下的 --dsw-alias-bg-base 本身就很深，58% 的不透明度会把壁纸
+         压得几乎看不见，玻璃也就失去了可折射的内容。这里降到 38%，
+         夜色依旧压得住正文，但背景图能透上来参与折射。 */
+      body[data-ds-dark-theme] [data-phase][class]:has(> [data-conversation-content]),
+      body[data-ds-dark-theme] [class*="centerCol_"],
+      body[data-ds-dark-theme] [class$="centerCol"] {
+        background: color-mix(in srgb, var(--dsw-alias-bg-base) 38%, transparent) !important;
+      }
+
       /* frame 自己也铺了一层 --dsw-alias-bg-base，不掏空的话中间列的薄纱
          下面仍是实底，等于没改。标题带/侧边栏的透明由 token override 负责。
          :has(> centerCol) 把范围锁在 AppFrame 的根网格上，避免命中同名的其它
@@ -948,6 +998,9 @@ window.__ModuleLoader__.load({
         /* 系统要求降低透明时退回可读的实底，宁可没有玻璃。 */
         [data-composer-card][data-shino-glass] {
           background: var(--dsw-specific-input-major) !important;
+        }
+        [data-presented-file][data-shino-glass] {
+          background: var(--dsw-alias-card-fill) !important;
         }
         [data-phase][class]:has(> [data-conversation-content]),
         [class*="centerCol_"],
@@ -996,10 +1049,29 @@ window.__ModuleLoader__.load({
         background: color-mix(in srgb, var(--dsw-specific-menu) 26%, transparent) !important;
       }
 
+      /* 夜间模式：菜单材质层调浅，暗色底上少压一层，背景图才能透上来。 */
+      body[data-ds-dark-theme] [data-menu-material] > [aria-hidden="true"]:first-child {
+        background: color-mix(in srgb, var(--dsw-specific-menu) 18%, transparent) !important;
+      }
+
       /* 玻璃层永不淡出：这一条是整段动画里最要紧的一行。 */
       [data-menu-material][data-menu-phase] > [aria-hidden="true"]:first-child {
         animation: none !important;
         opacity: 1 !important;
+      }
+
+      /* 输入触发器菜单（/ 与 @ 的候选菜单，data-trigger-menu）渲染在
+         composer card 内部（宿主 MenuView 用 closest('[data-composer-card]')
+         定位自己）。composer card 是玻璃目标、带 backdrop-filter，会成为
+         Backdrop Root，于是这个菜单的材质层只能采样它内部的内容，折射失效。
+
+         解除 composer card 自身的滤镜即可让菜单材质层重新采样到页面背景：
+         它是菜单材质的祖先链上唯一一个带 backdrop-filter 的元素
+         （中间的 overlay 层与菜单表面都不带滤镜）。
+         代价是菜单弹出期间输入框卡片本身没有折射，菜单关闭后自动恢复。 */
+      [data-composer-card]:has([data-trigger-menu]) {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
       }
 
       /* 弹入 / 弹出：从中间缩放，挂在表面（玻璃层与内容层的共同父级）上。
@@ -1097,18 +1169,26 @@ window.__ModuleLoader__.load({
       const MENU_GLASS_LAYER = '[data-menu-material] > [aria-hidden="true"]:first-child';
 
       // 代码块：宿主只给 banner 打了 data-code-block-banner，外层是哈希类名。
-      // 真实结构是 容器 > bannerWrap > banner，所以要用两层 :has 才能命中
-      // 圆角容器本身（只写一层会落到 bannerWrap 这个 sticky 包裹上）。
       //
-      // 但 :has() 会向上匹配**所有**满足条件的祖先，若代码块位于某个大容器里
-      // （例如聊天流的容器），那个祖先也会被选中，把整片区域玻璃化。
-      // 因此再加两个约束：
-      //   1. 容器自身必须直接含代码正文（pre），说明它确实是代码块而不是别的容器；
-      //   2. 排除聊天流区域（data-slot / data-chat-flow）内的祖先。
-      const CODE_BLOCK = [
-        'div:has(> div > [data-code-block-banner]):has(> pre)',
-        'div:has(> div > [data-code-block-banner]):has(> div:has(> pre))',
-      ].join(', ');
+      // :has() 是向上匹配的，所以这条选择器会同时命中：代码块容器本身、
+      // 包含它的消息节点、以及包住整条消息列的滚动容器。只靠选择器无法
+      // 区分——代码块有两种形态（带 bannerWrap 的 sticky 变体与直接带
+      // banner 的变体），层级不固定。
+      //
+      // 解决办法放在运行时：取候选里**最深的**那些（内部不再包含其它候选），
+      // 它们才是代码块容器本身。祖先（消息节点、流容器）自然被排除。
+      const CODE_BLOCK = 'div:has(> div > [data-code-block-banner])';
+
+      /**
+       * 从候选里挑出最深的元素（其内部不再包含其它候选）。
+       * :has() 向上匹配会一并带出祖先，这里把它们剔掉。
+       * @param candidates - 选择器命中的元素集合。
+       * @returns 最深层的那些元素。
+       */
+      function deepestOnly (candidates) {
+        const list = [...candidates]
+        return list.filter(el => !list.some(other => other !== el && el.contains(other)))
+      }
 
       // 右侧栏引导页（右侧「开始」入口页）的入口按钮。
       //
@@ -1122,6 +1202,8 @@ window.__ModuleLoader__.load({
       const GUIDE_ENTRY = [
         '[data-sidebar-right-guide] [data-sidebar-right-guide-entry]',
         '[data-sidebar-right-guide] button[class$="_entry"]',
+        // 「更多」锚点与 entry 同基类，但类名以 _moreAnchor 收尾（class$="_entry" 匹配不到）。
+        '[data-sidebar-right-guide] button[class*="_entry "][class$="_moreAnchor"]',
       ].join(', ');
 
       // 通用模态框面板。宿主用 [role="dialog"][aria-modal="true"] 统一标记
@@ -1137,18 +1219,20 @@ window.__ModuleLoader__.load({
 
       // 要玻璃化的宿主元素。都用宿主自己发布的稳定属性选择，不依赖哈希类名。
       // mark 是给无法直接用属性定位的目标补的标记，CSS 侧据此写透明化规则。
-      //
-      // 明确排除的两类（用户要求）：
-      //   · 用户发送的内容气泡 [data-message-bubble]
-      //   · 产物文件卡片 [data-presented-file]
-      // 它们仍会被"清理旧标记"逻辑摘干净，不会残留玻璃。
       const GLASS_TARGETS = [
         { selector: '[data-composer-card]', light: true },
+        // 用户发送的消息气泡：只玻璃化气泡自身。
+        // 它在聊天流内部、不包含整个流，所以不会被下面「包含聊天流则跳过」
+        // 的判定拦下。
+        { selector: '[data-message-bubble]', light: true },
         // 菜单的玻璃层：宿主给它挂的是普通 blur（--dsw-menu-backdrop-filter），
         // 交给 makeGlass 换成带折射的液态玻璃。inset:0 铺满表面，尺寸可测。
         { selector: MENU_GLASS_LAYER, light: false },
-        // 回复里的代码块。
-        { selector: CODE_BLOCK, light: true, mark: 'data-shino-code-block' },
+        // 产物文件卡片：present 工具在对话里铺出来的那一排，高度 60px。
+        { selector: '[data-presented-file]', light: true },
+        // 回复里的代码块。deepest：只取候选里最深的那些（代码块容器本身），
+        // 把 :has() 向上匹配带出的祖先（消息节点、流容器）剔掉。
+        { selector: CODE_BLOCK, light: true, mark: 'data-shino-code-block', deepest: true },
         // 通用模态框：设置面板、确认框、图片查看器都走这套。
         // [aria-modal="true"] 把它和菜单、tooltip 区分开。
         { selector: MODAL_PANEL, light: true },
@@ -1193,32 +1277,45 @@ window.__ModuleLoader__.load({
           stripGlass(el);
         }
 
-        // 用户要求排除的两类：用户发送的内容气泡、产物文件卡片。
-        // 它们不再是玻璃目标，但可能还留着上一版的标记（页面未刷新时），
-        // 这里主动摘干净，避免"改了配置但看着还是玻璃"。
-        for (const el of scope.querySelectorAll(
-          '[data-message-bubble][data-shino-glass], [data-presented-file][data-shino-glass]',
-        )) {
-          stripGlass(el);
-        }
-
         if (LG.LIQUID_GLASS_BLOCKED_BY_GPU_PREFERENCE) return;
 
         for (const target of GLASS_TARGETS) {
-          const nodes = scope.querySelectorAll(target.selector);
+          const found = scope.querySelectorAll(target.selector);
+          // deepest 目标只取候选里最深的那些：:has() 向上匹配会带出祖先，
+          // 祖先是容器（消息节点、流容器），不是要玻璃化的表面。
+          const nodes = target.deepest ? deepestOnly(found) : found;
           for (const el of nodes) {
             if (el.getAttribute('data-shino-glass') !== null) continue;
-            // 落在聊天流区域内的目标一律不玻璃化。
-            // :has() 是向上匹配的，代码块选择器可能命中一个包住整片聊天的容器，
-            // 那样整条消息列表会变成一块玻璃。
-            if (el.closest('[data-slot="conversation.chat.flow"], [data-chat-flow]') !== null) continue;
+            // 防止玻璃落到「整片聊天流」的容器上。
+            //
+            // 判定：元素若是聊天流的**祖先**（包含整个流），就不能玻璃化。
+            // 用 closest 判断「元素在流的内部还是外部」——
+            // 若元素自己就在流里面（closest 命中），它是流的内容（气泡、消息节点、
+            // 代码块），保留；否则它包住了整个流，跳过。
+            const flowSel = '[data-slot="conversation.chat.flow"], [data-chat-flow]';
+            const insideFlow = el.closest(flowSel) !== null;
+            if (!insideFlow && el.querySelector(flowSel) !== null) {
+              // 这个元素包含整片聊天流 → 它是区域容器，不是具体表面，跳过。
+              continue;
+            }
             // 目标用的是语义属性时（如 :has() 反向定位的代码块），
             // 补一个自己的标记，CSS 才能精确地只改这一层。
             if (target.mark !== undefined) el.setAttribute(target.mark, '');
             el.setAttribute('data-shino-glass', '');
             el.setAttribute('data-glass', '');
             if (target.light) el.setAttribute('data-glass-light', '');
-            LG.makeGlass(el);
+            // 每个目标独立兜住异常。
+            // makeGlass 需要 2D canvas 来生成位移图；一旦它抛错（例如画布不可用），
+            // 若不加隔离，整个扫描循环会被打断，后面的目标全部得不到玻璃——
+            // 表现为「输入框的玻璃莫名丢了」。
+            try {
+              LG.makeGlass(el);
+            } catch (error) {
+              // 这个表面暂时做不了玻璃：撤掉标记，交给下一轮扫描重试。
+              el.removeAttribute('data-shino-glass');
+              el.removeAttribute('data-glass');
+              el.removeAttribute('data-glass-light');
+            }
           }
         }
 
@@ -1279,8 +1376,13 @@ window.__ModuleLoader__.load({
             const bf = layer.style.backdropFilter || '';
             if (bf.indexOf('url(#') === -1 && bf.indexOf('blur(') === -1) {
               layer.removeAttribute('data-shino-glass');
-              const glass = LG.makeGlass(layer);
-              if (glass !== null && typeof glass.update === 'function') glass.update();
+              // 与 paintGlass 同样逐个兜住异常，避免一次失败中断整轮保护。
+              try {
+                const glass = LG.makeGlass(layer);
+                if (glass !== null && typeof glass.update === 'function') glass.update();
+              } catch (error) {
+                /* 画布不可用时保持无滤镜，下一轮再试。 */
+              }
             }
           }
           // 2. 压掉祖先的 backdrop-filter，让菜单层成为采样页面背景的那一个

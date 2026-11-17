@@ -58,7 +58,7 @@ Eight host surfaces get glass:
 | Menu glass layer | `[data-menu-material] > [aria-hidden]:first-child` | frontend bundle (`Ed`) |
 | Code block in a reply | `div:has(> div > [data-code-block-banner])` | frontend bundle (`FenceCodeBlock`) |
 | Any modal panel | `[role="dialog"][aria-modal="true"]` | shared dialog primitive |
-| Right-hand guide entry | `[data-sidebar-right-guide-entry]`, `button[class$="_entry"]`, … | `GuideBody.tsx` |
+| Right-hand guide entry | `[data-sidebar-right-guide] …` | `GuideBody.tsx` |
 | Sidebar "New session" | `button[class*="_newSession"]` | `Rows.tsx` / `SidebarRoot` |
 
 Most are attributes the host publishes itself, not hashed CSS-module class names.
@@ -78,10 +78,8 @@ Two need extra work and get a marker written by `paintGlass()`:
   and `backdrop-filter` removed, so no restart is needed.
 - **Guide entry** exists twice in `GuideBody`: the kind-carrying entries have
   `data-sidebar-right-guide-entry`, but the "More" menu anchor shares the same
-  `entry` class and has no attribute. The class map is
-  `{ entry: 'p2k40q_entry', entryCell: …, entryText: … }`, so `[class*="_entry"]`
-  would also select the wrapper and text spans; the selector requires the token
-  to *end* the class list and excludes the known prefixed siblings.
+  `entry` class and has no attribute. Both are found through the
+  `[data-sidebar-right-guide]` container — see "Scoping the guide entries" below.
 
 `tools/verify-selectors.cjs` builds the real nesting in jsdom and asserts each
 selector hits its intended element and nothing else (inline `<code>` is not a
@@ -112,7 +110,8 @@ translucent itself, using `color-mix` over those same tokens so the result
 follows the active palette instead of hard-coding a colour:
 
 - Composer card: 22% of its fill.
-- User bubble: 38% of its fill, so long prose stays readable.
+- User bubble: 38% of `--dsw-specific-bubble` (58% in the dark palette, where the
+  base colour is already deep and body text needs more backing).
 - Presented file card: 26% of `--dsw-alias-card-fill` at rest and 38% of
   `--dsw-alias-card-fill-hover` on hover. The hover state matters: the host
   repaints the card with an opaque hover fill, which would otherwise make the
@@ -128,6 +127,26 @@ follows the active palette instead of hard-coding a colour:
   (30%/44% and 26%/40% including hover).
 - The conversation column behind them becomes a 58% veil of `--dsw-alias-bg-base`
   — fully transparent would put body text straight on the wallpaper.
+
+### Keeping the glass off the transcript column
+
+`:has()` matches ancestors as well as the intended element. The code-block
+selector therefore also hits the message node and the scrolling container that
+wrap it — glazing those would turn the whole message column into one sheet of
+glass.
+
+Two rules keep it to the intended surfaces:
+
+- **deepest-only** (`deepestOnly`): among the candidates, only the ones that
+  contain no other candidate survive. Those are the code block containers
+  themselves; the ancestors drop out.
+- **chat-flow guard**: an element that contains the whole
+  `[data-slot="conversation.chat.flow"]` is a region container, not a surface,
+  and is skipped. Elements *inside* the flow (bubbles, code blocks) are kept.
+
+`tools/verify-bubble.cjs` asserts both in jsdom: the bubble and the code block
+are glassed, while the message node, the flow column, and the flow wrapper are
+not.
 
 `prefers-reduced-transparency: reduce` restores the stock opaque fills, and
 `LIQUID_GLASS_BLOCKED_BY_GPU_PREFERENCE` (localStorage `gpu_preference` =
@@ -251,32 +270,55 @@ in native), so the rule matches the `centerCol` token in either shape while
 excluding lookalikes such as `centerColIcon`, and pins the scope with
 `frame:has(> centerCol)`.
 
-### Menu glass vs. ancestor filters — solved with sibling filter layers
+### The trigger menu (`/` and `@` candidates)
+
+The input-trigger menu (`data-trigger-menu`) is rendered **inside** the composer
+card — the host's `MenuView` positions itself with
+`closest('[data-composer-card]')`. Since the composer card is a glass target
+and therefore a Backdrop Root, the trigger menu's material layer could only
+sample content *inside* that card, and its refraction was dead.
+
+The bundle lifts the composer card's own filter while the trigger menu is
+present:
+
+```css
+[data-composer-card]:has([data-trigger-menu]) {
+  backdrop-filter: none !important;
+}
+```
+
+The card is the only filtered element on that ancestor chain (the overlay
+wrapper and the menu surface carry no filter), so removing it restores the
+menu's sampling of the page. The composer loses its refraction only while the
+candidate menu is open.
+
+### Scoping the guide entries
+
+The right-hand guide entries are found through the container attribute
+`[data-sidebar-right-guide]`. A bare `button[class$="_entry"]` is unsafe: three
+packages end a class name with `_entry` — `p2k40q_entry` (the guide, wanted),
+`w30fQq_entry` (the **chat context** list, not wanted) and `-4GESq_entry`
+(the terminal sidebar, not wanted). Scoping by container keeps the other two out.
 
 CSS makes any element with a `backdrop-filter` a **Backdrop Root**. A descendant's
-filter then samples only that root's contents, not the page behind it. The first
-attempt suppressed ancestor filters while a menu was open — but that also killed
-the composer's glass (the menu and composer shared an ancestor chain).
+filter then samples only that root's contents, not the page behind it. So when
+a menu is rendered inside another glass surface (the trigger menu inside the
+composer card, for instance), the inner filter cannot see the page.
 
-The current design avoids the problem entirely: **every glass surface gets a
-dedicated child element** (`[data-shino-filter]`, absolutely positioned,
-`inset:0`, `pointer-events:none`, `z-index:-1`) and `makeGlass()` is called on
-that child, never on the host element itself:
+`paintGlass()` ends every scan with `protectMenuGlass()`, which:
 
-```
-target (isolation:isolate, translucent background)
-└── [data-shino-filter]   ← backdrop-filter lives here
-```
+1. restores any ancestor filters it suppressed in an earlier pass;
+2. re-runs `makeGlass()` on a menu layer whose inline filter lost its
+   `url(#lg-)` / `blur(` value;
+3. suppresses ancestor `backdrop-filter`s so the menu layer samples the page —
+   **skipping our own glass targets**, because suppressing them would kill the
+   composer's glass whenever a menu opened.
 
-All filters are now siblings in their own subtrees rather than nested along a
-shared ancestor chain, so opening a menu cannot suppress the composer. The
-menu's own host filter (`--dsw-menu-backdrop-filter` on `_material`) is set to
-`none` so it does not become a Backdrop Root trapping its child filter.
+The suppression is transient and self-restoring, so host state is never
+permanently altered.
 
-Insertion happens in `paintGlass()` and is idempotent: a target that already has
-a `[data-shino-filter]` child is skipped. `tools/verify-filter-dom.cjs` checks
-this in jsdom — one filter child per target, no duplicate on rescan, and the host
-element itself never carries `data-glass`.
+The trigger menu needs the opposite treatment (it lives *inside* the composer
+card), so it is handled in CSS instead — see above.
 
 The host paints four surfaces from a single token, `--dsw-specific-sidebar-fill`:
 

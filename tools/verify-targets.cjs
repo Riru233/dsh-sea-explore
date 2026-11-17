@@ -4,17 +4,23 @@ const path = require('path')
 const s = fs.readFileSync(path.join(__dirname, '..', 'client.js'), 'utf8')
 
 const checks = {
-  // 排除项：气泡与产物框不再是玻璃目标
-  'bubble not a glass target': !s.includes("{ selector: '[data-message-bubble]'"),
-  'presented not a glass target': !s.includes("{ selector: '[data-presented-file]'"),
-  'bubble has no glass css': !s.includes('[data-message-bubble][data-shino-glass] {'),
-  'presented has no glass css': !s.includes('[data-presented-file][data-shino-glass] {'),
-  'bubble cleaned at runtime': s.includes('[data-message-bubble][data-shino-glass], [data-presented-file][data-shino-glass]'),
+  // 用户气泡：液态玻璃 + 半透明底
+  'bubble IS a glass target': s.includes("{ selector: '[data-message-bubble]'"),
+  'bubble has glass edge': s.includes('[data-message-bubble][data-shino-glass] {'),
+  'bubble translucent fill': /\[data-message-bubble\]\[data-shino-glass\]\s*\{\s*background: color-mix\(in srgb, var\(--dsw-specific-bubble\) 38%/.test(s),
+  'bubble translucent in dark mode': /body\[data-ds-dark-theme\] \[data-message-bubble\]\[data-shino-glass\]/.test(s)
+    && /specific-bubble\) 58%/.test(s),
+  // 产物框已恢复玻璃
+  'presented IS a glass target': s.includes("{ selector: '[data-presented-file]'"),
+  'presented has glass css': s.includes('[data-presented-file][data-shino-glass] {'),
+  'presented not stripped': !s.includes("'[data-presented-file][data-shino-glass]'"),
   'stripGlass helper exists': s.includes('function stripGlass(el)'),
 
-  // 聊天流区域防护
-  'chat flow guard present': s.includes("el.closest('[data-slot=\"conversation.chat.flow\"], [data-chat-flow]')"),
-  'code block requires pre': s.includes('div:has(> div > [data-code-block-banner]):has(> pre)'),
+  // 聊天流区域防护：排除「包含整个流的大容器」，流内元素（气泡、代码块）保留
+  'chat flow ancestor guard': /el\.querySelector\(flowSel\)/.test(s)
+    && /const flowSel = '\[data-slot="conversation\.chat\.flow"\]/.test(s),
+  'deepest-only filter exists': s.includes('function deepestOnly (candidates)'),
+  'code block uses deepest': s.includes("deepest: true"),
 
   // 引导页限定在右侧栏内
   'guide scoped to sidebar-right': s.includes('[data-sidebar-right-guide] [data-sidebar-right-guide-entry]'),
@@ -32,7 +38,9 @@ const checks = {
   'root driver': s.includes("ctx.slots.inject('shell.overlay'"),
   'unified outline single decl': [...s.matchAll(/outline:\s*1px solid rgba\(35, 35, 35, 0\.3\)/g)].length === 1,
   'timing intact': s.includes('shino-menu-item-in 0.3s') && s.includes('var(--shino-menu-index, 0) * 0.1s'),
-  'no filter-child leftovers': !s.includes('data-shino-filter'),
+  // 旧版滤镜子层方案已废弃，但清理代码保留（用于摘掉残留）。
+  'no filter-child creation': !s.includes("setAttribute('data-shino-filter'"),
+  'filter-child cleanup kept': s.includes("querySelectorAll(':scope > [data-shino-filter]')"),
 }
 
 let bad = 0

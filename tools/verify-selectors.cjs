@@ -34,7 +34,7 @@ const dom = new JSDOM(`<!doctype html><html><body>
   <button data-sidebar-right-guide-entry="tab" id="guide">Open</button>
 
   <!-- GuideBody：entry 与它的同前缀兄弟，验证只有 entry 被选中 -->
-  <div class="p2k40q_guide" id="guide-page">
+  <div class="p2k40q_guide" data-sidebar-right-guide id="guide-page">
     <button class="p2k40q_entry" id="guide-entry-plain">Plain entry</button>
     <button class="p2k40q_entry p2k40q_moreAnchor" id="guide-entry-more">More</button>
     <div class="p2k40q_entryCell">
@@ -44,6 +44,15 @@ const dom = new JSDOM(`<!doctype html><html><body>
         <span class="p2k40q_entryDescription">D</span>
       </span>
     </div>
+  </div>
+
+  <!-- 聊天上下文区：类名同样以 _entry 结尾，必须不被引导页选择器命中 -->
+  <div class="context-body" id="chat-context">
+    <button class="w30fQq_entry" id="context-entry">ctx</button>
+  </div>
+  <!-- 终端侧边栏：另一个 _entry 结尾的类名 -->
+  <div id="terminal-panel">
+    <button class="-4GESq_entry" id="terminal-entry">term</button>
   </div>
 
   <button class="iconButton" aria-label="在“proj”中新建会话" id="newsession-cn">+</button>
@@ -71,10 +80,11 @@ const selectors = {
   menuGlass: '[data-menu-material] > [aria-hidden="true"]:first-child',
   codeBlock: 'div:has(> div > [data-code-block-banner])',
   modal: '[role="dialog"][aria-modal="true"]',
+  // 必须限定在右侧引导页容器内，否则会命中聊天上下文的 w30fQq_entry
   guide: [
-    '[data-sidebar-right-guide-entry]',
-    'button[class$="_entry"]',
-    'button[class*="_entry "]:not([class*="_entryCell"]):not([class*="_entryText"]):not([class*="_entryIcon"]):not([class*="_entryDescription"]):not([class*="_entryTitle"])',
+    '[data-sidebar-right-guide] [data-sidebar-right-guide-entry]',
+    '[data-sidebar-right-guide] button[class$="_entry"]',
+    '[data-sidebar-right-guide] button[class*="_entry "][class$="_moreAnchor"]',
   ].join(', '),
   newSession: 'button[class*="_newSession"]',
 }
@@ -87,8 +97,8 @@ const expected = {
   // 只取最内层容器；banner 的 sticky 包裹不单独立项
   codeBlock: ['codeblock'],
   modal: ['modal'],
-  // 三个真实按钮；entryCell 等包裹不是按钮，不该进来
-  guide: ['guide', 'guide-entry-plain', 'guide-entry-more'],
+  // 引导页内的两个按钮；entryCell 等包裹不是按钮，不该进来
+  guide: ['guide-entry-plain', 'guide-entry-more'],
   // 只有真正的「新会话」按钮；品牌区（wtg9ga_brand/wide）不得命中
   newSession: ['real-newsession'],
 }
@@ -135,12 +145,19 @@ const spanHit = [...d.querySelectorAll(selectors.guide)].some(n => n.tagName ===
 console.log((spanHit ? 'FAIL ' : 'OK   ') + 'no span matched as guide entry')
 if (spanHit) bad++
 
-// guide 命中的元素必须恰好是三个按钮
+// guide 命中的元素必须恰好是引导页内的两个按钮，
+// 且聊天上下文 / 终端侧边栏的 _entry 一律不得命中。
 const guideNodes = [...d.querySelectorAll(selectors.guide)]
 const guideIds = guideNodes.map(n => n.id)
-const guideOk = guideIds.length === 3 && expected.guide.every(g => guideIds.includes(g))
-console.log((guideOk ? 'OK   ' : 'FAIL ') + 'guide entry count = 3 buttons')
+const guideOk = guideIds.length === 2 && expected.guide.every(g => guideIds.includes(g))
+console.log((guideOk ? 'OK   ' : 'FAIL ') + 'guide entry count = 2 buttons (guide-scoped)')
 if (!guideOk) bad++
+
+for (const [label, id] of [['chat context entry excluded', 'context-entry'], ['terminal entry excluded', 'terminal-entry']]) {
+  const hit = guideIds.includes(id)
+  console.log((hit ? 'FAIL ' : 'OK   ') + label)
+  if (hit) bad++
+}
 
 console.log(bad ? '\n' + bad + ' FAILURES' : '\nALL SELECTOR CHECKS PASS')
 process.exit(bad ? 1 : 0)

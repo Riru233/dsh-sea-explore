@@ -19,11 +19,14 @@ const checks = {
   'surface pop no fill-mode': !/shino-menu-pop-in 0\.32s[^;]*\bboth\b/.test(s),
   'glass layer opacity pinned': /animation:\s*none !important;\s*\n\s*opacity:\s*1 !important/.test(s),
 
-  'presented-file is a glass target': s.includes("selector: '[data-presented-file]'"),
+  // 产物框已恢复玻璃；用户气泡排除
+  'presented-file IS a glass target': s.includes("selector: '[data-presented-file]'"),
   'presented-file edge shared rule': /data-presented-file\]\[data-shino-glass\][^{]*\{[\s\S]{0,200}?outline: 1px solid rgba\(35, 35, 35, 0\.3\)/.test(s),
   'presented-file translucent fill': s.includes('--dsw-alias-card-fill) 26%'),
   'presented-file hover translucent': s.includes('--dsw-alias-card-fill-hover) 38%'),
   'presented-file tile translucent': s.includes('--dsw-alias-card-tile-fill) 30%'),
+  'bubble IS a glass target': s.includes("selector: '[data-message-bubble]'"),
+  'bubble has glass edge': s.includes('[data-message-bubble][data-shino-glass] {'),
 
   'unified outline single decl': [...s.matchAll(/outline:\s*1px solid rgba\(35, 35, 35, 0\.3\)/g)].length === 1,
   'no dark outline override': !s.includes('outline-color: rgba(255, 255, 255'),
