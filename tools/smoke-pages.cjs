@@ -84,7 +84,7 @@ for (const r of registered) {
 
 const overlay = registered.find(r => r.key === 'shell.overlay')
 const dock = registered.find(r => r.key === 'conversation.composer.dock')
-console.log('root-scoped driver:', overlay && overlay.id === 'shinoinject-glass-driver' ? 'PASS' : 'FAIL')
-console.log('dock status strip:', dock && dock.id === 'shinoinject-strip' ? 'PASS' : 'FAIL')
+console.log('root-scoped driver:', overlay && overlay.id === 'dsh-sea-explore-glass-driver' ? 'PASS' : 'FAIL')
+console.log('dock status strip:', dock && dock.id === 'dsh-sea-explore-strip' ? 'PASS' : 'FAIL')
 
-if (!overlay || overlay.id !== 'shinoinject-glass-driver' || !dock || dock.id !== 'shinoinject-strip') process.exit(1)
+if (!overlay || overlay.id !== 'dsh-sea-explore-glass-driver' || !dock || dock.id !== 'dsh-sea-explore-strip') process.exit(1)

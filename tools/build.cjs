@@ -34,7 +34,7 @@ const indentedBody = body
   .join('\n')
 
 const output = `/* ============================================================================
- * shinoinject —— 浏览器产物（勿手改）
+ * dsh-sea-explore —— 浏览器产物（勿手改）
  *
  * 由 tools/build.cjs 从下面两部分拼装：
  *   vendor/liquidglass.js  —— example-tsx/liquidglass.ts 的无损转译产物
@@ -47,7 +47,7 @@ const output = `/* =============================================================
  *   3. 输入框下方一行会话状态
  * ========================================================================== */
 window.__ModuleLoader__.load({
-  id: 'shinoinject',
+  id: 'dsh-sea-explore',
   factory(require) {
 ${indentedVendor}
 

@@ -5,7 +5,7 @@ const s = fs.readFileSync(path.join(__dirname, '..', 'client.js'), 'utf8')
 
 const checks = {
   'driver in shell.overlay (root scope)': s.includes("ctx.slots.inject('shell.overlay'"),
-  'driver id present': s.includes("id: 'shinoinject-glass-driver'"),
+  'driver id present': s.includes("id: 'dsh-sea-explore-glass-driver'"),
   'driver order 900': s.includes('order: 900'),
   'strip still in composer dock': s.includes("ctx.slots.inject('conversation.composer.dock'"),
   'centerCol veil rule': s.includes('[class*="centerCol_"]') && s.includes('[class$="centerCol"]'),

@@ -1,4 +1,4 @@
-# shinoinject
+# dsh-sea-explore
 
 A DeepSeek Harness web-UI bundle with three parts: liquid glass on the chat
 bubbles and the composer input, a transparent shell (sidebar and the Windows
@@ -418,14 +418,14 @@ The host paints four surfaces from a single token, `--dsw-specific-sidebar-fill`
 | The sidebar content root | `SidebarRoot.module.css` `.root` |
 
 `apply()` stacks one theme override layer over that token
-(`theme.overrideTokens('shinoinject-chrome', …)`) with `transparent` in both
+(`theme.overrideTokens('dsh-sea-explore-chrome', …)`) with `transparent` in both
 light and dark. One token turns all four surfaces transparent, so the page
 background reaches under the sidebar and under the caption row. The layer is
 removed by its disposer on unload; the host theme is never modified.
 
 ## 3. Session status line
 
-Slot `conversation.composer.dock`, entry id `shinoinject-strip`, order `20`.
+Slot `conversation.composer.dock`, entry id `dsh-sea-explore-strip`, order `20`.
 
 | Element | Source | Meaning |
 |---|---|---|
@@ -442,7 +442,7 @@ composer already lists them with actions.
 - Only the status word is a live region, so the draft counter does not announce
   on every keystroke.
 - Text is translated through the Client locale service: the registration declares
-  the `shinoinject` namespace and `client.js` registers Chinese and English with
+  the `dsh-sea-explore` namespace and `client.js` registers Chinese and English with
   an English fallback.
 
 ## Files
@@ -467,4 +467,4 @@ icon.svg              plugin icon
 
 Add the package directory through **Plugins** > **Add plugin** (local directory),
 or install it as a bundle; the profile keeps the dependency as
-`"shinoinject": "link:C:/Users/11251/dsh-plugins/shinoinject"`.
+`"dsh-sea-explore": "link:C:/Users/11251/dsh-plugins/dsh-sea-explore"`.

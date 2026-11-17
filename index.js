@@ -1,2 +1,2 @@
-/** Host half of the shinoinject bundle; the Client module owns the rendering. */
+/** Host half of the dsh-sea-explore bundle; the Client module owns the rendering. */
 export function apply() {}

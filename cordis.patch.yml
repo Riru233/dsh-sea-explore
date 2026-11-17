@@ -1,5 +1,5 @@
-# Inserts the shinoinject row into the web plugin roster.
+# Inserts the dsh-sea-explore row into the web plugin roster.
 # All interface work happens in client.js; this Host half is an empty stub.
 - insert:
-    - id: shinoinject
-      name: 'shinoinject'
+    - id: dsh-sea-explore
+      name: 'dsh-sea-explore'

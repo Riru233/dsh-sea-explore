@@ -1,5 +1,5 @@
 /* ============================================================================
- * shinoinject —— 浏览器产物（勿手改）
+ * dsh-sea-explore —— 浏览器产物（勿手改）
  *
  * 由 tools/build.cjs 从下面两部分拼装：
  *   vendor/liquidglass.js  —— example-tsx/liquidglass.ts 的无损转译产物
@@ -12,7 +12,7 @@
  *   3. 输入框下方一行会话状态
  * ========================================================================== */
 window.__ModuleLoader__.load({
-  id: 'shinoinject',
+  id: 'dsh-sea-explore',
   factory(require) {
       /* AUTO-GENERATED from example-tsx/liquidglass.ts by tools/convert.cjs — do not edit by hand. */
       var __ShinoLiquidGlass = (() => {
@@ -799,7 +799,7 @@ window.__ModuleLoader__.load({
       })();
 
       /* ============================================================================
-       * shinoinject —— 客户端半边（应用层代码）
+       * dsh-sea-explore —— 客户端半边（应用层代码）
        *
        * 这个文件不直接发布：tools/build.cjs 会把 vendor/liquidglass.js（由
        * example-tsx/liquidglass.ts 无损转译而来）拼在它前面，一起写进 client.js。
@@ -1602,7 +1602,7 @@ window.__ModuleLoader__.load({
 
       /* ------------------------------------------------------------ 文案 */
 
-      const NS = 'shinoinject';
+      const NS = 'dsh-sea-explore';
       const DICT = {
         zh: {
           'state.running': '生成中',
@@ -1610,7 +1610,7 @@ window.__ModuleLoader__.load({
           'state.done': '有新结果',
           'state.idle': '空闲',
           'meta.draft': '草稿 {n} 字',
-          'title': 'shinoinject：当前会话状态',
+          'title': 'dsh-sea-explore：当前会话状态',
         },
         en: {
           'state.running': 'Working',
@@ -1618,7 +1618,7 @@ window.__ModuleLoader__.load({
           'state.done': 'New result',
           'state.idle': 'Idle',
           'meta.draft': '{n} draft chars',
-          'title': 'shinoinject: session status',
+          'title': 'dsh-sea-explore: session status',
         },
       };
 
@@ -1704,9 +1704,9 @@ window.__ModuleLoader__.load({
         const React = require('react');
         const h = React.createElement;
         return h(React.Fragment, null,
-          h('style', { 'data-shinoinject': 'glass' }, GLASS_CSS),
-          h('style', { 'data-shinoinject': 'menu' }, MENU_GLASS_CSS),
-          h('style', { 'data-shinoinject': 'strip' }, STRIP_CSS));
+          h('style', { 'data-dsh-sea-explore': 'glass' }, GLASS_CSS),
+          h('style', { 'data-dsh-sea-explore': 'menu' }, MENU_GLASS_CSS),
+          h('style', { 'data-dsh-sea-explore': 'strip' }, STRIP_CSS));
       }
 
       function ShinoStrip(props) {
@@ -1805,8 +1805,8 @@ window.__ModuleLoader__.load({
           // 卸载时 disposer 移除该层，宿主主题不被改动。
           if (theme !== undefined && typeof theme.overrideTokens === 'function') {
             ctx.effect(
-              () => theme.overrideTokens('shinoinject-chrome', CHROME_BACKGROUND_OVERRIDES),
-              'shinoinject-chrome-transparent',
+              () => theme.overrideTokens('dsh-sea-explore-chrome', CHROME_BACKGROUND_OVERRIDES),
+              'dsh-sea-explore-chrome-transparent',
             );
           }
 
@@ -1814,7 +1814,7 @@ window.__ModuleLoader__.load({
           // 此时保留已有字典即可，不影响渲染。
           if (locale !== undefined && typeof locale.register === 'function') {
             try {
-              ctx.effect(() => locale.register(NS, DICT), 'shinoinject-locale');
+              ctx.effect(() => locale.register(NS, DICT), 'dsh-sea-explore-locale');
             } catch {
               /* 已有同 ns/locale 的字典，继续。 */
             }
@@ -1826,26 +1826,26 @@ window.__ModuleLoader__.load({
           // 驱动随之消失，玻璃就不再扫描新页面（切换后立即失效的原因）。
           ctx.effect(() => ctx.slots.inject('shell.overlay', () => ctx.slots.register({
             name: 'shell.overlay',
-            id: 'shinoinject-glass-driver',
+            id: 'dsh-sea-explore-glass-driver',
             order: 900,
           }, () => {
             const React = require('react');
             return React.createElement(GlassDriver);
-          })), 'shinoinject-glass-driver');
+          })), 'dsh-sea-explore-glass-driver');
 
           // 会话状态条仍然留在输入框下方（会话槽位）。
           // 注册时声明命名空间，宿主把 `t` 席位合成到 props 上，
           // 语言切换时随 outlet 一起重绘，不用自己订阅 locale/change。
           ctx.effect(() => ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({
             name: 'conversation.composer.dock',
-            id: 'shinoinject-strip',
+            id: 'dsh-sea-explore-strip',
             order: 20,
             locale: NS,
           }, props => {
             const React = require('react');
             const h = React.createElement;
             return h(ShinoStrip, props);
-          })), 'shinoinject-dock-strip');
+          })), 'dsh-sea-explore-dock-strip');
         },
       };
   },

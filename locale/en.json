@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "shinoinject liquid glass",
+    "title": "dsh-sea-explore liquid glass",
     "description": "Liquid glass with real edge refraction on the chat bubbles, the composer input, and the menus. Menus pop in and out from their centre with a fade, and their items slide in one after another (translateX -10px to 0, 0.5s each, 0.2s apart). The sidebar and the Windows title bar are transparent so the page background shows through, and one low-key session status line sits below the composer. The composer and bubbles are left translucent by this bundle so the glass has something to refract. Effects stop under reduced-motion, reduced-transparency, and the low-power GPU preference; turn the bundle off to restore the stock look.",
     "detail": "docs/DETAIL.md"
   }
