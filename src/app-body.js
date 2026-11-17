@@ -299,7 +299,7 @@ const MENU_GLASS_CSS = `
 /* 菜单材质层：掏空宿主的实色底。
    边饰（border / outline / box-shadow）画在**表面**上——材质层是 inset:0
    的子元素，它的 outline 会被表面裁掉、看不见。 */
-[data-menu-material] > [aria-hidden="true"]:first-child {
+[data-menu-material]:not([data-context-menu]) > [aria-hidden="true"]:first-child {
   box-sizing: border-box;
   background: color-mix(in srgb, var(--dsw-specific-menu) 26%, transparent) !important;
 }
@@ -316,7 +316,7 @@ const MENU_GLASS_CSS = `
 }
 
 /* 夜间模式：菜单材质层调浅，暗色底上少压一层，背景图才能透上来。 */
-body[data-ds-dark-theme] [data-menu-material] > [aria-hidden="true"]:first-child {
+body[data-ds-dark-theme] [data-menu-material]:not([data-context-menu]) > [aria-hidden="true"]:first-child {
   background: color-mix(in srgb, var(--dsw-specific-menu) 18%, transparent) !important;
 }
 
@@ -324,8 +324,9 @@ body[data-ds-dark-theme] [data-context-menu][data-shino-menu-surface] {
   background: color-mix(in srgb, var(--dsw-specific-menu) 18%, transparent) !important;
 }
 
-/* 玻璃层永不淡出：这一条是整段动画里最要紧的一行。 */
-[data-menu-material][data-menu-phase] > [aria-hidden="true"]:first-child {
+/* 玻璃层永不淡出：这一条是整段动画里最要紧的一行。
+   context-menu 的玻璃在 surface 自身，材质层不参与。 */
+[data-menu-material]:not([data-context-menu])[data-menu-phase] > [aria-hidden="true"]:first-child {
   animation: none !important;
   opacity: 1 !important;
 }
@@ -793,9 +794,23 @@ function protectMenuGlass() {
     let parent = layer.parentElement;
     while (parent !== null && parent !== document.body) {
       // 宿主自己的玻璃目标：它的滤镜必须保留，不能压制。
-      // 输入框卡片用 data-shino-card 标记（滤镜在它的滤镜层上）。
+      // 输入框卡片用 data-shino-card 标记（滤镜在它的滤镜层上）；
+      // 其它玻璃表面（含父菜单的玻璃层/表面）用 data-shino-glass /
+      // data-shino-menu-surface 标记，滤镜本体由 liquidglass 打 data-glass。
+      //
+      // 子菜单弹出时，父菜单就在祖先链上。若这里把父菜单的滤镜压成 none，
+      // 父菜单的玻璃就没了——必须全部跳过。
       if (parent.getAttribute('data-shino-glass') !== null
-        || parent.getAttribute('data-shino-card') !== null) {
+        || parent.getAttribute('data-shino-card') !== null
+        || parent.getAttribute('data-shino-menu-surface') !== null
+        || parent.getAttribute('data-glass') !== null) {
+        parent = parent.parentElement;
+        continue;
+      }
+      // 更进一步：不要跨出「另一个菜单表面」继续往上压制。
+      // 子菜单的祖先里若已经有一个 data-menu-material，那是父菜单，
+      // 它的整条链都应当保持原样。
+      if (parent.getAttribute('data-menu-material') !== null) {
         parent = parent.parentElement;
         continue;
       }

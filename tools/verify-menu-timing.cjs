@@ -13,7 +13,7 @@ const st = step ? Number(step[1]) : NaN
 const checks = {
   'pop uses --shino-menu-pop-ms var': /shino-menu-pop-in var\(--shino-menu-pop-ms/.test(s),
   'item has two animations (hold + in)': /shino-menu-item-in [\d.]+s[^;]*backwards,\s*\n?\s*shino-menu-item-hold var\(--shino-menu-pop-ms/.test(s),
-  'hold keyframe changes no transform/opacity': /@keyframes shino-menu-item-hold \{[\s\S]{0,120}?from \{ transform: none; opacity: 1; \}/.test(s),
+  'hold keyframe hides content (no transform, opacity 0)': /@keyframes shino-menu-item-hold \{[\s\S]{0,120}?from \{ transform: none; opacity: 0; \}/.test(s),
   'item delay includes pop duration': /animation-delay:\s*\n?\s*calc\(\s*var\(--shino-menu-pop-ms[^)]*\)\s*\+\s*var\(--shino-menu-index/.test(s),
   'hold delay is 0 (starts immediately)': /animation-delay:[\s\S]{0,120}?0s;/.test(s),
   'item duration 0.3s': item === 0.3,

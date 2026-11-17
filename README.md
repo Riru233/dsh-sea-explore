@@ -287,7 +287,45 @@ in native), so the rule matches the `centerCol` token in either shape while
 excluding lookalikes such as `centerColIcon`, and pins the scope with
 `frame:has(> centerCol)`.
 
-### Menu animation: pop first, then the staggered items
+### Context menus: the glass rides on the surface itself
+
+A right-click menu carries `data-context-menu` together with
+`data-menu-material` on the **same surface element**, with the material layer as
+its child. Both the pop animation and the glass would otherwise land on
+different levels: if the glass sat on the material layer (a descendant), the
+surface's own `transform` animation would truncate it during the pop.
+
+The bundle therefore hangs the glass on the surface itself for context menus:
+
+- `CONTEXT_MENU_SURFACE = '[data-context-menu][data-menu-material]'` is a glass
+  target with `menuSurface: true`;
+- the host material layer's filter is switched off and its fill made
+  transparent, so the two filters never stack;
+- `MENU_GLASS_LAYER` excludes context menus with `:not([data-context-menu])`,
+  so the same menu never gets glassed twice.
+
+An element's own `transform` does not truncate its **own** `backdrop-filter` —
+only that of its descendants. Keeping the filter and the pop on the same
+element therefore preserves the refraction for the whole animation.
+
+The staggered items stay hidden during the pop: `shino-menu-item-hold` pins them
+to `opacity: 0` while the parent scales, and the real slide-in starts only after
+the pop finishes. The user sees the empty glass surface first, then the items
+slide in.
+
+### Submenus must not swallow the parent menu's glass
+
+`protectMenuGlass()` suppresses ancestor `backdrop-filter`s so a menu layer can
+sample the page. A submenu, however, has its parent menu in that ancestor chain;
+a naive suppression would erase the parent's glass.
+
+The traversal now skips any ancestor that is one of our glass surfaces —
+`data-shino-glass`, `data-shino-card`, `data-shino-menu-surface`, or the
+liquidglass mark `data-glass` — and stops climbing once it reaches another
+`data-menu-material` (the parent menu). Both menus keep their filters.
+
+`tools/verify-ctx-menu.cjs` and `tools/verify-menu-timing.cjs` cover all of this
+in jsdom.
 
 A transform on an ancestor makes Chromium composite that whole subtree into its
 own layer, and a descendant's `backdrop-filter` can then only sample that

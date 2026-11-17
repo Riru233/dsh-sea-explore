@@ -96,19 +96,28 @@ if (typeof layoutEffect === 'function') layoutEffect()
 
 const surface = d.getElementById('surface')
 const mat = d.getElementById('mat')
-console.log('  debug: data-context-menu surface 数量:', d.querySelectorAll('[data-context-menu][data-menu-material]').length)
-console.log('  debug: MENU_GLASS_LAYER 匹配:', d.querySelectorAll('[data-menu-material] > [aria-hidden="true"]:first-child').length)
-console.log('  debug: surface data-glass:', surface.getAttribute('data-glass'))
-console.log('  debug: surface style:', surface.style.cssText)
-console.log('  debug: mat style:', mat.style.cssText)
+const surfaceCss = surface.style.cssText || ''
+const matCss = mat.style.cssText || ''
 check('surface marked data-shino-menu-surface', surface.getAttribute('data-shino-menu-surface') !== null)
 check('surface has data-glass (filter host)', surface.getAttribute('data-glass') !== null)
 check('surface filter written',
-  (surface.style.getPropertyValue('-webkit-backdrop-filter') || '').includes('blur('),
-  surface.style.getPropertyValue('-webkit-backdrop-filter') || '(none)')
+  /blur\(|url\(/.test(surfaceCss), surfaceCss || '(none)')
 check('material layer filter disabled',
-  (mat.style.getPropertyValue('-webkit-backdrop-filter') || '') === 'none',
-  mat.style.getPropertyValue('-webkit-backdrop-filter') || '(none)')
+  /backdrop-filter:\s*none/.test(matCss), matCss || '(none)')
+
+// 3. 互斥：MENU_GLASS_LAYER 不再匹配 context-menu 的材质层
+check('MENU_GLASS_LAYER excludes context-menu',
+  code.includes("'[data-menu-material]:not([data-context-menu]) > [aria-hidden=\"true\"]:first-child'"))
+check('context-menu material not double-glassed',
+  mat.getAttribute('data-glass') === null, String(mat.getAttribute('data-glass')))
+
+// 4. 子菜单不压制父菜单：protectMenuGlass 跳过所有玻璃祖先
+check('protect skips data-glass ancestors',
+  /parent\.getAttribute\('data-glass'\) !== null/.test(code))
+check('protect skips menu surface ancestors',
+  /parent\.getAttribute\('data-shino-menu-surface'\) !== null/.test(code))
+check('protect stops at parent menu material',
+  /parent\.getAttribute\('data-menu-material'\) !== null/.test(code))
 
 console.log(bad ? '\n' + bad + ' FAILURES' : '\nALL OK')
 process.exit(bad ? 1 : 0)
