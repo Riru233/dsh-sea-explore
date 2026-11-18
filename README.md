@@ -417,11 +417,37 @@ The host paints four surfaces from a single token, `--dsw-specific-sidebar-fill`
 | The sidebar column | `AppFrame.module.css` `.sidebarCol` |
 | The sidebar content root | `SidebarRoot.module.css` `.root` |
 
-`apply()` stacks one theme override layer over that token
-(`theme.overrideTokens('dsh-sea-explore-chrome', …)`) with `transparent` in both
-light and dark. One token turns all four surfaces transparent, so the page
-background reaches under the sidebar and under the caption row. The layer is
-removed by its disposer on unload; the host theme is never modified.
+Two mechanisms cover both the steady state and the very first frame:
+
+1. **CSS override** — `CHROME_TRANSPARENT_CSS` is inserted into `<head>`
+   synchronously from `apply()`, before any React component renders. It sets
+   `background: transparent !important` on the frame (scoped with
+   `:has(> [class*="centerCol"])` so the unrelated `_frame` width control is
+   not hit), on the frame's `::before` drag band, and on the sidebar column and
+   root. This is what removes the initial opaque flash: the shell paints with
+   the override already in the cascade, rather than waiting for a runtime token
+   change.
+2. **Token override** — `theme.overrideTokens('dsh-sea-explore-chrome', …)`
+   with `transparent` in both light and dark covers any host style that reads
+   the token itself.
+
+Both are registered through `ctx.effect`, so their disposers restore the host
+theme and remove the injected style on unload; the host theme is never
+permanently modified. `tools/verify-chrome.cjs` checks the selector set, the
+synchronous insertion, and the cleanup.
+
+### Language-less code blocks
+
+A fenced block without a language tag renders as `.md-code-block` containing a
+plain `<pre>` and **no** `data-code-block-banner`, so the code-block target
+(`div:has(> div > [data-code-block-banner])`) never sees it. Its background —
+`--dsl-code-block-background` on the `pre`, plus a translucent container —
+stayed opaque while the language-tagged blocks were glassed.
+
+A dedicated rule empties the `pre` background for `.md-code-block` (and for any
+`[class*="block_"]` container that has no banner), and gives the container the
+same translucent fill as the glassed code blocks. The stable `md-code-block`
+class is emitted on every fence container in both web and native builds.
 
 ## 3. Session status line
 

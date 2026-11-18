@@ -28,6 +28,18 @@ const checks = {
   'bubble IS a glass target': s.includes("selector: '[data-message-bubble]'"),
   'bubble has glass edge': s.includes('[data-message-bubble][data-shino-glass] {'),
 
+  // 产物改动展示卡：[data-changed-files]，头部只稍微加透明度
+  'changed-files IS a glass target': s.includes("selector: '[data-changed-files]'"),
+  'changed-files edge shared rule': /data-changed-files\]\[data-shino-glass\][^{]*\{[\s\S]{0,200}?outline: 1px solid rgba\(35, 35, 35, 0\.3\)/.test(s),
+  'changed-files card translucent': /\[data-changed-files\]\[data-shino-glass\] \{[\s\S]{0,120}?--dsw-alias-bg-layer-1\) 34%/.test(s),
+  'changed-files header slightly translucent': /\[data-changed-files\]\[data-shino-glass\] > \[class\*="header"\] \{[\s\S]{0,140}?--dsw-alias-card-fill\) 70%/.test(s),
+  'changed-files header hover translucent': /--dsw-alias-card-fill-hover\) 78%/.test(s),
+  'changed-files header more opaque than card': (() => {
+    const card = /--dsw-alias-bg-layer-1\) (\d+)%/.exec(s)
+    const head = /--dsw-alias-card-fill\) (\d+)%/.exec(s)
+    return card && head && Number(head[1]) > Number(card[1])
+  })(),
+
   'unified outline single decl': [...s.matchAll(/outline:\s*1px solid rgba\(35, 35, 35, 0\.3\)/g)].length === 2,
   'no dark outline override': !s.includes('outline-color: rgba(255, 255, 255'),
   // 八个玻璃目标：composer / bubble / presented / menu / codeblock / modal / guide / newsession

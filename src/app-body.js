@@ -22,6 +22,33 @@
  * ========================================================================== */
 const LG = __ShinoLiquidGlass;
 
+/* --------------------------------------------- 首帧即生效的外壳透明规则 */
+/*
+ * 侧边栏与 Windows 顶部标题带的背景来自 --dsw-specific-sidebar-fill。
+ * theme.overrideTokens 是运行时覆盖，最早也要到插件 apply 才生效，
+ * 而外壳在首帧已经用默认 token 画完了——这就是「初步加载时透明失效」。
+ *
+ * 这里改用 CSS 直接覆盖宿主外壳元素的 background，!important 保证压过
+ * 主题样式表。样式在 apply 阶段同步插入 <head>，随模块加载立即生效，
+ * 不依赖 React 组件的渲染时机。
+ *
+ * 选择器沿用宿主 AppFrame.module.css 的结构（dsh-client-ui-layout）：
+ *   · [class*="frame"]:has(> [class*="centerCol"]) 精确锁定 AppFrame 根，
+ *     不会命中同名的会话宽度控制 _frame；::before 是 Windows 拖拽带；
+ *   · [class*="sidebarCol"] / [class*="sidebarRoot"] 是侧边栏列与根节点。
+ * 前后缀两种写法都列出，兼容 web 与 native 构建的类名格式差异。
+ */
+const CHROME_TRANSPARENT_CSS = `
+[class*="frame"]:has(> [class*="centerCol"]),
+[class*="frame"]:has(> [class*="centerCol"])::before,
+[class*="sidebarCol"],
+[class$="sidebarCol"],
+[class*="sidebarRoot"],
+[class$="sidebarRoot"] {
+  background: transparent !important;
+}
+`;
+
 /* ------------------------------------------------------------ 玻璃的样式 */
 
 // 玻璃的「边饰」照抄 reference usage.tsx 的四条：
@@ -48,7 +75,8 @@ const GLASS_EDGE_CSS = `
 [data-shino-new-session][data-shino-glass],
 [data-shino-code-block][data-shino-glass],
 [data-question-key][data-shino-glass],
-[data-question-reply] > div > div[data-shino-glass] {
+[data-question-reply] > div > div[data-shino-glass],
+[data-changed-files][data-shino-glass] {
   border: 0 !important;
   border-top: 1px solid #fff6 !important;
   border-bottom: 1px solid #fff6 !important;
@@ -78,7 +106,8 @@ body[data-ds-dark-theme] [data-shino-guide-entry][data-shino-glass],
 body[data-ds-dark-theme] [data-shino-new-session][data-shino-glass],
 body[data-ds-dark-theme] [data-shino-code-block][data-shino-glass],
 body[data-ds-dark-theme] [data-question-key][data-shino-glass],
-body[data-ds-dark-theme] [data-question-reply] > div > div[data-shino-glass] {
+body[data-ds-dark-theme] [data-question-reply] > div > div[data-shino-glass],
+body[data-ds-dark-theme] [data-changed-files][data-shino-glass] {
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45) !important;
 }
 `;
@@ -140,6 +169,30 @@ body[data-ds-dark-theme] [data-message-bubble][data-shino-glass] {
   background: color-mix(in srgb, var(--dsw-alias-card-tile-fill) 30%, transparent) !important;
 }
 
+/* 产物改动展示卡（[data-changed-files]，宿主 ChangedFiles.tsx）。
+   卡片底是 --dsw-alias-bg-layer-1，头部是 --changes-fill
+   （即 --dsw-alias-card-fill），都铺成实色。
+   卡片整体掏空成半透明交给玻璃；头部承载标题与统计文字，
+   只稍微加透明度（较高不透明度）以保证文字可读，hover 同理。 */
+[data-changed-files][data-shino-glass] {
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 34%, transparent) !important;
+}
+
+[data-changed-files][data-shino-glass] > [class*="header"] {
+  background: color-mix(in srgb, var(--dsw-alias-card-fill) 70%, transparent) !important;
+  transition: background-color 120ms ease;
+}
+
+[data-changed-files][data-shino-glass] > [class*="header"]:hover,
+[data-changed-files][data-shino-glass] > [class*="header"]:focus-visible {
+  background: color-mix(in srgb, var(--dsw-alias-card-fill-hover) 78%, transparent) !important;
+}
+
+/* 头部里的文件类型图标块同样稍微透明。 */
+[data-changed-files][data-shino-glass] [class*="tile"] {
+  background: color-mix(in srgb, var(--dsw-alias-card-tile-fill) 60%, transparent) !important;
+}
+
 /* 回复里的代码块：容器底色是 --dsl-code-block-background
    （= --dsw-alias-markdown-code-block），banner 另外铺了一层
    --dsw-alias-bg-base 实色。两处都要掏空，否则玻璃顶部会被一条
@@ -156,6 +209,20 @@ body[data-ds-dark-theme] [data-message-bubble][data-shino-glass] {
    否则玻璃顶部会被一条实色横条盖住。真实结构：容器 > bannerWrap > banner。 */
 [data-shino-code-block][data-shino-glass] > div:has(> [data-code-block-banner]) {
   background: transparent !important;
+}
+
+/* 无语言代码块（纯文本 pre）：宿主用 .md-code-block 容器包一层，
+   里面是直接铺在 --dsl-code-block-background 上的 <pre>。
+   这类代码块没有 data-code-block-banner，不会被 CODE_BLOCK 选择器命中，
+   所以走独立规则：容器与 pre 都掏空，玻璃/透明底才能透上来。
+   _block_kjs70 是宿主的哈希类名片段，web/native 构建里都含 block 段。 */
+.md-code-block :where(pre),
+[class*="block_"] :where(pre):not(:has([data-code-block-banner])) {
+  background: transparent !important;
+}
+
+.md-code-block {
+  background: color-mix(in srgb, var(--dsw-alias-markdown-code-block) 40%, transparent) !important;
 }
 
 /* 模型提问的卡片：宿主底色是 --dsw-specific-input-major（实色），
@@ -537,6 +604,9 @@ const GLASS_TARGETS = [
   { selector: MENU_GLASS_LAYER, light: false, menuLayer: true },
   // 产物文件卡片：present 工具在对话里铺出来的那一排，高度 60px。
   { selector: '[data-presented-file]', light: true },
+  // 产物改动展示卡：宿主 ChangedFiles.tsx 的 [data-changed-files]。
+  // 头部只稍微加透明度，保证标题/统计文字可读。
+  { selector: '[data-changed-files]', light: true },
   // 回复里的代码块。deepest：只取候选里最深的那些（代码块容器本身），
   // 把 :has() 向上匹配带出的祖先（消息节点、流容器）剔掉。
   { selector: CODE_BLOCK, light: true, mark: 'data-shino-code-block', deepest: true },
@@ -1001,8 +1071,20 @@ return {
     const locale = ctx.get('locale');
     const theme = ctx.get('theme');
 
-    // 侧边栏 / 顶部标题栏透明：只叠一层 token override，
-    // 卸载时 disposer 移除该层，宿主主题不被改动。
+    // 侧边栏 / 顶部标题栏透明，两道保险：
+    //   1. CSS 直接覆盖外壳元素背景，在 apply 阶段同步插入 <head>，
+    //      从样式加载起就生效，解决「初步加载时透明失效」；
+    //   2. token override 覆盖依赖该 token 的宿主样式，卸载时移除。
+    if (typeof document !== 'undefined') {
+      ctx.effect(() => {
+        const style = document.createElement('style');
+        style.setAttribute('data-dsh-sea-explore', 'chrome');
+        style.textContent = CHROME_TRANSPARENT_CSS;
+        document.head.appendChild(style);
+        return () => style.remove();
+      }, 'dsh-sea-explore-chrome-css');
+    }
+
     if (theme !== undefined && typeof theme.overrideTokens === 'function') {
       ctx.effect(
         () => theme.overrideTokens('dsh-sea-explore-chrome', CHROME_BACKGROUND_OVERRIDES),

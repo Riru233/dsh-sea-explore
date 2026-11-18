@@ -822,6 +822,33 @@ window.__ModuleLoader__.load({
        * ========================================================================== */
       const LG = __ShinoLiquidGlass;
 
+      /* --------------------------------------------- 首帧即生效的外壳透明规则 */
+      /*
+       * 侧边栏与 Windows 顶部标题带的背景来自 --dsw-specific-sidebar-fill。
+       * theme.overrideTokens 是运行时覆盖，最早也要到插件 apply 才生效，
+       * 而外壳在首帧已经用默认 token 画完了——这就是「初步加载时透明失效」。
+       *
+       * 这里改用 CSS 直接覆盖宿主外壳元素的 background，!important 保证压过
+       * 主题样式表。样式在 apply 阶段同步插入 <head>，随模块加载立即生效，
+       * 不依赖 React 组件的渲染时机。
+       *
+       * 选择器沿用宿主 AppFrame.module.css 的结构（dsh-client-ui-layout）：
+       *   · [class*="frame"]:has(> [class*="centerCol"]) 精确锁定 AppFrame 根，
+       *     不会命中同名的会话宽度控制 _frame；::before 是 Windows 拖拽带；
+       *   · [class*="sidebarCol"] / [class*="sidebarRoot"] 是侧边栏列与根节点。
+       * 前后缀两种写法都列出，兼容 web 与 native 构建的类名格式差异。
+       */
+      const CHROME_TRANSPARENT_CSS = `
+      [class*="frame"]:has(> [class*="centerCol"]),
+      [class*="frame"]:has(> [class*="centerCol"])::before,
+      [class*="sidebarCol"],
+      [class$="sidebarCol"],
+      [class*="sidebarRoot"],
+      [class$="sidebarRoot"] {
+        background: transparent !important;
+      }
+      `;
+
       /* ------------------------------------------------------------ 玻璃的样式 */
 
       // 玻璃的「边饰」照抄 reference usage.tsx 的四条：
@@ -956,6 +983,20 @@ window.__ModuleLoader__.load({
          否则玻璃顶部会被一条实色横条盖住。真实结构：容器 > bannerWrap > banner。 */
       [data-shino-code-block][data-shino-glass] > div:has(> [data-code-block-banner]) {
         background: transparent !important;
+      }
+
+      /* 无语言代码块（纯文本 pre）：宿主用 .md-code-block 容器包一层，
+         里面是直接铺在 --dsl-code-block-background 上的 <pre>。
+         这类代码块没有 data-code-block-banner，不会被 CODE_BLOCK 选择器命中，
+         所以走独立规则：容器与 pre 都掏空，玻璃/透明底才能透上来。
+         _block_kjs70 是宿主的哈希类名片段，web/native 构建里都含 block 段。 */
+      .md-code-block :where(pre),
+      [class*="block_"] :where(pre):not(:has([data-code-block-banner])) {
+        background: transparent !important;
+      }
+
+      .md-code-block {
+        background: color-mix(in srgb, var(--dsw-alias-markdown-code-block) 40%, transparent) !important;
       }
 
       /* 模型提问的卡片：宿主底色是 --dsw-specific-input-major（实色），
@@ -1801,8 +1842,20 @@ window.__ModuleLoader__.load({
           const locale = ctx.get('locale');
           const theme = ctx.get('theme');
 
-          // 侧边栏 / 顶部标题栏透明：只叠一层 token override，
-          // 卸载时 disposer 移除该层，宿主主题不被改动。
+          // 侧边栏 / 顶部标题栏透明，两道保险：
+          //   1. CSS 直接覆盖外壳元素背景，在 apply 阶段同步插入 <head>，
+          //      从样式加载起就生效，解决「初步加载时透明失效」；
+          //   2. token override 覆盖依赖该 token 的宿主样式，卸载时移除。
+          if (typeof document !== 'undefined') {
+            ctx.effect(() => {
+              const style = document.createElement('style');
+              style.setAttribute('data-dsh-sea-explore', 'chrome');
+              style.textContent = CHROME_TRANSPARENT_CSS;
+              document.head.appendChild(style);
+              return () => style.remove();
+            }, 'dsh-sea-explore-chrome-css');
+          }
+
           if (theme !== undefined && typeof theme.overrideTokens === 'function') {
             ctx.effect(
               () => theme.overrideTokens('dsh-sea-explore-chrome', CHROME_BACKGROUND_OVERRIDES),
