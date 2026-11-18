@@ -14,10 +14,14 @@ function check (label, ok, detail) {
 }
 
 // 静态：CSS 规则存在
+// 静态：CSS 规则存在。首帧透明改为模块 factory 执行时最早注入。
 check('chrome CSS constant exists', code.includes('CHROME_TRANSPARENT_CSS'))
-check('chrome style inserted at apply',
-  /document\.head\.appendChild\(style\)/.test(code)
-  && /style\.textContent = CHROME_TRANSPARENT_CSS/.test(code))
+check('chrome style injected at module scope (earliest)', code.includes('injectChromeCssEarly'))
+check('early inject appends to head',
+  /\(document\.head \|\| document\.documentElement\)\.appendChild\(style\)/.test(code))
+check('early inject dedupes by id', /document\.getElementById\(ID\) !== null\) return/.test(code))
+check('token itself forced transparent', /:root,\s*\n\s*html\[data-ds-dark-theme\][\s\S]{0,120}?--dsw-specific-sidebar-fill: transparent !important/.test(code))
+check('window leading buttons transparent', /\[data-shell-leading\] button[\s\S]{0,160}?background: transparent !important/.test(code))
 check('chrome style has cleanup', /return \(\) => style\.remove\(\)/.test(code))
 check('chrome selector: frame with centerCol',
   code.includes('[class*="frame"]:has(> [class*="centerCol"])'))
@@ -57,6 +61,13 @@ const React = {
   useRef: v => ({ current: v }),
 }
 const plugin = captured.factory(n => (n === 'react' ? React : (() => { throw new Error(n) })()))
+
+// 模块 factory 执行时（调用 plugin 之前）就已注入，这是首帧最早时机
+const earlyStyle = d.getElementById('dsh-sea-explore-chrome')
+check('chrome style injected at factory time (before apply)', earlyStyle !== null)
+check('early style forces token transparent',
+  earlyStyle && /--dsw-specific-sidebar-fill: transparent !important/.test(earlyStyle.textContent))
+
 let effects = []
 const ctx = {
   get: n => (n === 'theme' ? { overrideTokens: () => () => {} } : n === 'locale' ? { register: () => () => {} } : undefined),
@@ -68,14 +79,17 @@ plugin.apply(ctx)
 const chromeEffect = effects.find(e => e.id === 'dsh-sea-explore-chrome-css')
 check('chrome effect registered at apply', chromeEffect !== undefined)
 if (chromeEffect) {
+  // effect 接管已存在的 style，不重复插入
+  const before = d.querySelectorAll('style#dsh-sea-explore-chrome').length
   const dispose = chromeEffect.fn()
-  const inserted = d.querySelector('style[data-dsh-sea-explore="chrome"]')
+  const inserted = d.getElementById('dsh-sea-explore-chrome')
+  check('no duplicate style after effect', d.querySelectorAll('style#dsh-sea-explore-chrome').length === before)
   check('chrome style present in head after effect', inserted !== null)
   check('chrome style contains transparent rules',
     inserted && inserted.textContent.includes('sidebarCol') && inserted.textContent.includes('transparent !important'))
   if (typeof dispose === 'function') {
     dispose()
-    check('chrome style removed on dispose', d.querySelector('style[data-dsh-sea-explore="chrome"]') === null)
+    check('chrome style removed on dispose', d.getElementById('dsh-sea-explore-chrome') === null)
   }
 }
 

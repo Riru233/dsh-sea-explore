@@ -474,22 +474,33 @@ The host paints four surfaces from a single token, `--dsw-specific-sidebar-fill`
 
 Two mechanisms cover both the steady state and the very first frame:
 
-1. **CSS override** — `CHROME_TRANSPARENT_CSS` is inserted into `<head>`
-   synchronously from `apply()`, before any React component renders. It sets
-   `background: transparent !important` on the frame (scoped with
-   `:has(> [class*="centerCol"])` so the unrelated `_frame` width control is
-   not hit), on the frame's `::before` drag band, and on the sidebar column and
-   root. This is what removes the initial opaque flash: the shell paints with
-   the override already in the cascade, rather than waiting for a runtime token
-   change.
-2. **Token override** — `theme.overrideTokens('dsh-sea-explore-chrome', …)`
-   with `transparent` in both light and dark covers any host style that reads
-   the token itself.
+1. **CSS injected at module load** — `CHROME_TRANSPARENT_CSS` is inserted into
+   `<head>` from `injectChromeCssEarly()` at module-factory time, the earliest
+   point the plugin can reach — earlier than `apply()` and before any React
+   component renders. Its first rule forces the token itself transparent:
 
-Both are registered through `ctx.effect`, so their disposers restore the host
-theme and remove the injected style on unload; the host theme is never
-permanently modified. `tools/verify-chrome.cjs` checks the selector set, the
-synchronous insertion, and the cleanup.
+   ```css
+   :root, html[data-ds-dark-theme] {
+     --dsw-specific-sidebar-fill: transparent !important;
+   }
+   ```
+
+   This is the fix for "the sidebar and window buttons are still opaque on
+   first open": the sidebar root (`SidebarRoot.module.css .root`), the Windows
+   caption band and its `::before` drag strip, and the window controls in
+   `[data-shell-leading]` all read that token or carry an opaque fill. Setting
+   the variable once covers every one of them, without guessing hashed class
+   names like `_root_xxx` (which do **not** contain `sidebarRoot`, so the old
+   element-selector approach missed the sidebar root entirely). Element-level
+   `background: transparent !important` rules cover the fills that come from
+   `--dsw-alias-bg-base` rather than the token. `apply()` reuses the same style
+   by id so no duplicate is inserted, and takes over its disposal.
+2. **Token override** — `theme.overrideTokens('dsh-sea-explore-chrome', …)`
+   with `transparent` in both light and dark as the runtime-level layer.
+
+The style is removed on unload by the `ctx.effect` disposer, so the host theme
+is never permanently modified. `tools/verify-chrome.cjs` checks the earliest
+injection, the token override, the window-button rule, and the cleanup.
 
 ### Language-less code blocks
 

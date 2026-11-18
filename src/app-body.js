@@ -115,15 +115,49 @@ function installGlassEffectsOnce() {
  * 前后缀两种写法都列出，兼容 web 与 native 构建的类名格式差异。
  */
 const CHROME_TRANSPARENT_CSS = `
+/* 最彻底的一层：直接把 token 本身改成透明。
+   侧边栏根 (.root)、Windows 标题带 (.frame)、拖拽带 (::before)、
+   以及窗口按钮都引用这一个 token；改变量一次覆盖全部，
+   不必猜各元素的哈希类名（_root_xxx 不含 sidebarRoot，之前的选择器漏了它）。
+   !important 压过主题样式表，样式一注入即生效，不等 React 渲染。 */
+:root,
+html[data-ds-dark-theme] {
+  --dsw-specific-sidebar-fill: transparent !important;
+}
+
+/* 元素级兜底：这些背景不经该 token（来自 --dsw-alias-bg-base 等），
+   单独掏空。frame 用 :has(> centerCol) 锁定 AppFrame 根，
+   避免命中同名的会话宽度控制 _frame。 */
 [class*="frame"]:has(> [class*="centerCol"]),
 [class*="frame"]:has(> [class*="centerCol"])::before,
 [class*="sidebarCol"],
 [class$="sidebarCol"],
-[class*="sidebarRoot"],
-[class$="sidebarRoot"] {
+[data-sidebar-scrollport] {
+  background: transparent !important;
+}
+
+/* 窗口按钮（最小化/最大化/关闭）：在 [data-shell-leading] 座位里，
+   宿主给它们铺了实底，初次加载时跟着侧边栏一起显得不透明。 */
+[data-shell-leading] button,
+[data-shell-leading] [class*="control"],
+[data-shell-leading] [class*="button"] {
   background: transparent !important;
 }
 `;
+
+/* 首帧透明：在模块 factory 执行时就把 CSS 注入 <head>，
+   这是插件能触及的最早时机——比 apply、比任何 React 组件的 render 都早。
+   ctx.effect 里的同名 style 保留作卸载清理的兜底，两者靠固定 id 去重。
+   window 级标记保证多次加载（HMR）不重复插入。 */
+(function injectChromeCssEarly() {
+  if (typeof document === 'undefined') return;
+  const ID = 'dsh-sea-explore-chrome';
+  if (document.getElementById(ID) !== null) return;
+  const style = document.createElement('style');
+  style.id = ID;
+  style.textContent = CHROME_TRANSPARENT_CSS;
+  (document.head || document.documentElement).appendChild(style);
+})();
 
 /* ------------------------------------------------------------ 玻璃的样式 */
 
@@ -1196,16 +1230,20 @@ return {
     // 滤镜缩减/错位；并建立跨重载幂等的光效安装标记。
     resetLiquidGlassState();
 
-    // 侧边栏 / 顶部标题栏透明，两道保险：
-    //   1. CSS 直接覆盖外壳元素背景，在 apply 阶段同步插入 <head>，
-    //      从样式加载起就生效，解决「初步加载时透明失效」；
+    // 侧边栏 / 顶部标题栏透明：
+    //   1. CSS 已在模块 factory 执行时注入（见 injectChromeCssEarly），
+    //      这是最早时机，解决「初次打开仍不透明」；这里接管它的卸载清理。
     //   2. token override 覆盖依赖该 token 的宿主样式，卸载时移除。
     if (typeof document !== 'undefined') {
       ctx.effect(() => {
-        const style = document.createElement('style');
-        style.setAttribute('data-dsh-sea-explore', 'chrome');
-        style.textContent = CHROME_TRANSPARENT_CSS;
-        document.head.appendChild(style);
+        const id = 'dsh-sea-explore-chrome';
+        let style = document.getElementById(id);
+        if (style === null) {
+          style = document.createElement('style');
+          style.id = id;
+          style.textContent = CHROME_TRANSPARENT_CSS;
+          (document.head || document.documentElement).appendChild(style);
+        }
         return () => style.remove();
       }, 'dsh-sea-explore-chrome-css');
     }
