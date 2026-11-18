@@ -35,8 +35,8 @@ const checks = {
   'changed-files header slightly translucent': /\[data-changed-files\]\[data-shino-glass\] > \[class\*="header"\] \{[\s\S]{0,140}?--dsw-alias-card-fill\) 70%/.test(s),
   'changed-files header hover translucent': /--dsw-alias-card-fill-hover\) 78%/.test(s),
   'changed-files header more opaque than card': (() => {
-    const card = /--dsw-alias-bg-layer-1\) (\d+)%/.exec(s)
-    const head = /--dsw-alias-card-fill\) (\d+)%/.exec(s)
+    const card = /\[data-changed-files\]\[data-shino-glass\] \{[\s\S]{0,120}?--dsw-alias-bg-layer-1\) (\d+)%/.exec(s)
+    const head = /\[data-changed-files\]\[data-shino-glass\] > \[class\*="header"\] \{[\s\S]{0,140}?--dsw-alias-card-fill\) (\d+)%/.exec(s)
     return card && head && Number(head[1]) > Number(card[1])
   })(),
 

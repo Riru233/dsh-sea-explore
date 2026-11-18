@@ -875,7 +875,8 @@ window.__ModuleLoader__.load({
       [data-shino-new-session][data-shino-glass],
       [data-shino-code-block][data-shino-glass],
       [data-question-key][data-shino-glass],
-      [data-question-reply] > div > div[data-shino-glass] {
+      [data-question-reply] > div > div[data-shino-glass],
+      [data-changed-files][data-shino-glass] {
         border: 0 !important;
         border-top: 1px solid #fff6 !important;
         border-bottom: 1px solid #fff6 !important;
@@ -905,7 +906,8 @@ window.__ModuleLoader__.load({
       body[data-ds-dark-theme] [data-shino-new-session][data-shino-glass],
       body[data-ds-dark-theme] [data-shino-code-block][data-shino-glass],
       body[data-ds-dark-theme] [data-question-key][data-shino-glass],
-      body[data-ds-dark-theme] [data-question-reply] > div > div[data-shino-glass] {
+      body[data-ds-dark-theme] [data-question-reply] > div > div[data-shino-glass],
+      body[data-ds-dark-theme] [data-changed-files][data-shino-glass] {
         box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45) !important;
       }
       `;
@@ -965,6 +967,30 @@ window.__ModuleLoader__.load({
       /* 卡片里的文件类型图标块，同属玻璃表面，一起掏空以保持层次一致。 */
       [data-presented-file][data-shino-glass] [class*="fileIcon"] {
         background: color-mix(in srgb, var(--dsw-alias-card-tile-fill) 30%, transparent) !important;
+      }
+
+      /* 产物改动展示卡（[data-changed-files]，宿主 ChangedFiles.tsx）。
+         卡片底是 --dsw-alias-bg-layer-1，头部是 --changes-fill
+         （即 --dsw-alias-card-fill），都铺成实色。
+         卡片整体掏空成半透明交给玻璃；头部承载标题与统计文字，
+         只稍微加透明度（较高不透明度）以保证文字可读，hover 同理。 */
+      [data-changed-files][data-shino-glass] {
+        background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 34%, transparent) !important;
+      }
+
+      [data-changed-files][data-shino-glass] > [class*="header"] {
+        background: color-mix(in srgb, var(--dsw-alias-card-fill) 70%, transparent) !important;
+        transition: background-color 120ms ease;
+      }
+
+      [data-changed-files][data-shino-glass] > [class*="header"]:hover,
+      [data-changed-files][data-shino-glass] > [class*="header"]:focus-visible {
+        background: color-mix(in srgb, var(--dsw-alias-card-fill-hover) 78%, transparent) !important;
+      }
+
+      /* 头部里的文件类型图标块同样稍微透明。 */
+      [data-changed-files][data-shino-glass] [class*="tile"] {
+        background: color-mix(in srgb, var(--dsw-alias-card-tile-fill) 60%, transparent) !important;
       }
 
       /* 回复里的代码块：容器底色是 --dsl-code-block-background
@@ -1378,6 +1404,9 @@ window.__ModuleLoader__.load({
         { selector: MENU_GLASS_LAYER, light: false, menuLayer: true },
         // 产物文件卡片：present 工具在对话里铺出来的那一排，高度 60px。
         { selector: '[data-presented-file]', light: true },
+        // 产物改动展示卡：宿主 ChangedFiles.tsx 的 [data-changed-files]。
+        // 头部只稍微加透明度，保证标题/统计文字可读。
+        { selector: '[data-changed-files]', light: true },
         // 回复里的代码块。deepest：只取候选里最深的那些（代码块容器本身），
         // 把 :has() 向上匹配带出的祖先（消息节点、流容器）剔掉。
         { selector: CODE_BLOCK, light: true, mark: 'data-shino-code-block', deepest: true },

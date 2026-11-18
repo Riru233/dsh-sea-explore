@@ -13,6 +13,10 @@ const dom = new JSDOM(`<!doctype html><html><body>
     <div id="reply-width"><div id="reply-bubble"></div></div>
     <div id="reply-actions"></div>
   </div>
+  <div data-changed-files id="changed-files">
+    <button class="HOHHba_header" id="changed-header"></button>
+    <ul id="changed-list"></ul>
+  </div>
 </body></html>`)
 const d = dom.window.document
 
@@ -128,6 +132,14 @@ const replyActions = d.getElementById('reply-actions')
 check('question card has glass marker', question.getAttribute('data-shino-glass') !== null)
 check('reply bubble has glass marker', replyBubble.getAttribute('data-shino-glass') !== null)
 check('reply actions row NOT glassed', replyActions.getAttribute('data-shino-glass') === null)
+
+// 产物改动展示卡：卡片拿到玻璃，头部列表项不单独玻璃
+const changedCard = d.getElementById('changed-files')
+const changedHeader = d.getElementById('changed-header')
+const changedList = d.getElementById('changed-list')
+check('changed-files card has glass marker', changedCard.getAttribute('data-shino-glass') !== null)
+check('changed-files header NOT separately glassed', changedHeader.getAttribute('data-shino-glass') === null)
+check('changed-files list NOT separately glassed', changedList.getAttribute('data-shino-glass') === null)
 
 // 关键回归：某个目标 makeGlass 抛错时，扫描循环不能被中断，
 // 后面的目标仍要拿到玻璃。这正是「输入框的玻璃莫名丢了」的成因。

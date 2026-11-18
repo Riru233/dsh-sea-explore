@@ -48,13 +48,14 @@ stubbed-DOM smoke test exercises `clampLiquidGlassParam` (clamping to bounds),
 
 ## 1. Liquid glass
 
-Ten host surfaces get glass:
+Eleven host surfaces get glass:
 
 | Surface | Selector | Host stylesheet / source |
 |---|---|---|
 | Composer input card | `[data-composer-card]` | `InputBar.tsx` |
 | User message bubble | `[data-message-bubble]` | `UserContent.tsx` |
 | Presented file card | `[data-presented-file]` | `PresentedFileCard.tsx` |
+| Changed-files card | `[data-changed-files]` | `ChangedFiles.tsx` |
 | Model question card | `[data-question-key]` | `QuestionComposer.tsx` |
 | Answer bubble in context | `[data-question-reply] > div > div` | `QuestionReplyView.tsx` |
 | Menu glass layer | `[data-menu-material] > [aria-hidden]:first-child` | frontend bundle (`Ed`) |
@@ -124,6 +125,11 @@ follows the active palette instead of hard-coding a colour:
   repaints the card with an opaque hover fill, which would otherwise make the
   glass vanish the moment the pointer arrives. Its inner file-type tile is
   softened too (`--dsw-alias-card-tile-fill` at 30%) so the layers stay coherent.
+- Changed-files card: 34% of `--dsw-alias-bg-layer-1` for the body. Its header —
+  a `button` carrying the file title and added/deleted counts — is only slightly
+  translucent (70% of `--dsw-alias-card-fill`, 78% on hover): it deliberately
+  stays much more opaque than the body so the text keeps its contrast. The
+  inner file-type tile is softened to 60%.
 - Code block: 40% of `--dsw-alias-markdown-code-block`, its banner 42% of
   `--dsw-alias-markdown-code-block-banner`, and the sticky `bannerWrap` forced
   transparent — the host paints that wrapper with an opaque `--dsw-alias-bg-base`,
