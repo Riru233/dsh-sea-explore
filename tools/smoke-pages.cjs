@@ -29,7 +29,10 @@ function mkEl (tag) {
 globalThis.document = {
   documentElement: { append () {}, style: { setProperty () {} } },
   head: { appendChild () {}, removeChild () {} },
-  body: { hasAttribute: () => false, appendChild () {}, setAttribute () {} },
+  body: {
+    hasAttribute: () => false, appendChild () {}, setAttribute () {},
+    style: { setProperty () {}, getPropertyValue: () => '', getPropertyPriority: () => '', removeProperty () {} },
+  },
   querySelector: () => null,
   querySelectorAll: () => [],
   getElementById: () => null,

@@ -915,13 +915,15 @@ window.__ModuleLoader__.load({
        * 前后缀两种写法都列出，兼容 web 与 native 构建的类名格式差异。
        */
       const CHROME_TRANSPARENT_CSS = `
-      /* 最彻底的一层：直接把 token 本身改成透明。
+      /* 最彻底的一层：直接把 token 改成透明。
+         宿主的 token 定义在 body 上（design-platform.css 的 body { ... }），
+         不是 :root —— CSS 变量继承时，body 自身的普通声明会压过从 :root
+         继承来的 !important 值，所以必须同样写在 body 上才能生效。
          侧边栏根 (.root)、Windows 标题带 (.frame)、拖拽带 (::before)、
-         以及窗口按钮都引用这一个 token；改变量一次覆盖全部，
-         不必猜各元素的哈希类名（_root_xxx 不含 sidebarRoot，之前的选择器漏了它）。
+         以及窗口按钮都引用这一个 token；改变量一次覆盖全部。
          !important 压过主题样式表，样式一注入即生效，不等 React 渲染。 */
-      :root,
-      html[data-ds-dark-theme] {
+      body,
+      body[data-ds-dark-theme] {
         --dsw-specific-sidebar-fill: transparent !important;
       }
 
@@ -957,7 +959,23 @@ window.__ModuleLoader__.load({
         style.id = ID;
         style.textContent = CHROME_TRANSPARENT_CSS;
         (document.head || document.documentElement).appendChild(style);
+        // 同时用内联 !important 直接钉在 body 上。
+        // 主题 presenter 用 body.style.setProperty(name, value)（普通内联）写 token；
+        // 内联 !important 的优先级高于普通内联，也高于样式表规则，是最强保障。
+        if (document.body !== null) {
+          document.body.style.setProperty('--dsw-specific-sidebar-fill', 'transparent', 'important');
+        }
       })();
+
+      /**
+       * 维持 sidebar token 的透明内联值。
+       * 主题切换/初始化时 presenter 会重新写普通内联值，这里在每轮玻璃扫描时
+       * 把它改回透明 important。presenter 写的是普通内联，压不过这条。
+       */
+      function keepChromeTransparent() {
+        if (typeof document === 'undefined' || document.body === null) return;
+        document.body.style.setProperty('--dsw-specific-sidebar-fill', 'transparent', 'important');
+      }
 
       /* ------------------------------------------------------------ 玻璃的样式 */
 
@@ -1599,6 +1617,10 @@ window.__ModuleLoader__.load({
       function paintGlass(root) {
         const scope = root && typeof root.querySelectorAll === 'function' ? root : document;
 
+        // 维持侧边栏 token 透明：presenter 在主题初始化/切换时会重写该变量，
+        // 每轮扫描顺手钉回透明 important。
+        keepChromeTransparent();
+
         // 菜单：与 GPU 偏好无关地打序号，玻璃层由宿主自己负责。
         for (const surface of scope.querySelectorAll('[data-menu-material]')) {
           indexMenuItems(surface);
@@ -2044,7 +2066,19 @@ window.__ModuleLoader__.load({
                 style.textContent = CHROME_TRANSPARENT_CSS;
                 (document.head || document.documentElement).appendChild(style);
               }
-              return () => style.remove();
+              const previous = document.body.style.getPropertyValue('--dsw-specific-sidebar-fill');
+              const previousPriority = document.body.style.getPropertyPriority('--dsw-specific-sidebar-fill');
+              keepChromeTransparent();
+              return () => {
+                style.remove();
+                if (previousPriority === 'important') {
+                  document.body.style.setProperty('--dsw-specific-sidebar-fill', previous, 'important');
+                } else if (previous !== '') {
+                  document.body.style.setProperty('--dsw-specific-sidebar-fill', previous);
+                } else {
+                  document.body.style.removeProperty('--dsw-specific-sidebar-fill');
+                }
+              };
             }, 'dsh-sea-explore-chrome-css');
           }
 

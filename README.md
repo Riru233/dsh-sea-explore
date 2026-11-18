@@ -480,10 +480,19 @@ Two mechanisms cover both the steady state and the very first frame:
    component renders. Its first rule forces the token itself transparent:
 
    ```css
-   :root, html[data-ds-dark-theme] {
+   body, body[data-ds-dark-theme] {
      --dsw-specific-sidebar-fill: transparent !important;
    }
    ```
+
+   The selector is `body`, **not** `:root`: the host defines all tokens in
+   `design-platform.css` on `body`, and a value inherited from `:root` loses to
+   `body`'s own declaration even when the inherited value is `!important`.
+   More decisively, the theme presenter writes tokens as **inline** values on
+   `body` (`body.style.setProperty(name, value)`). So the plugin also pins the
+   token as an inline `!important` value at factory time and re-applies it on
+   each glass scan (`keepChromeTransparent`) — an inline `!important` outranks
+   the presenter's ordinary inline write. Both are restored on unload.
 
    This is the fix for "the sidebar and window buttons are still opaque on
    first open": the sidebar root (`SidebarRoot.module.css .root`), the Windows

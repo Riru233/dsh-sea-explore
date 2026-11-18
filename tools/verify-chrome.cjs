@@ -20,9 +20,18 @@ check('chrome style injected at module scope (earliest)', code.includes('injectC
 check('early inject appends to head',
   /\(document\.head \|\| document\.documentElement\)\.appendChild\(style\)/.test(code))
 check('early inject dedupes by id', /document\.getElementById\(ID\) !== null\) return/.test(code))
-check('token itself forced transparent', /:root,\s*\n\s*html\[data-ds-dark-theme\][\s\S]{0,120}?--dsw-specific-sidebar-fill: transparent !important/.test(code))
+check('token itself forced transparent on body',
+  /body,\s*\n\s*body\[data-ds-dark-theme\][\s\S]{0,120}?--dsw-specific-sidebar-fill: transparent !important/.test(code))
+check('token rule not on :root (body defines it)',
+  !/:root,\s*\n\s*html\[data-ds-dark-theme\][\s\S]{0,120}?--dsw-specific-sidebar-fill/.test(code))
+check('inline important pinned at factory time',
+  /document\.body\.style\.setProperty\('--dsw-specific-sidebar-fill', 'transparent', 'important'\)/.test(code))
+check('keepChromeTransparent guard exists', code.includes('function keepChromeTransparent()'))
+check('guard called each paint', /keepChromeTransparent\(\);[\s\S]{0,120}?菜单/.test(code))
+check('dispose restores prior token', /removeProperty\('--dsw-specific-sidebar-fill'\)/.test(code))
 check('window leading buttons transparent', /\[data-shell-leading\] button[\s\S]{0,160}?background: transparent !important/.test(code))
-check('chrome style has cleanup', /return \(\) => style\.remove\(\)/.test(code))
+check('chrome style has cleanup', /style\.remove\(\);/.test(code)
+  && /removeProperty\('--dsw-specific-sidebar-fill'\)/.test(code))
 check('chrome selector: frame with centerCol',
   code.includes('[class*="frame"]:has(> [class*="centerCol"])'))
 check('chrome selector: frame ::before',
@@ -67,6 +76,10 @@ const earlyStyle = d.getElementById('dsh-sea-explore-chrome')
 check('chrome style injected at factory time (before apply)', earlyStyle !== null)
 check('early style forces token transparent',
   earlyStyle && /--dsw-specific-sidebar-fill: transparent !important/.test(earlyStyle.textContent))
+check('body inline token is transparent important',
+  d.body.style.getPropertyValue('--dsw-specific-sidebar-fill') === 'transparent'
+  && d.body.style.getPropertyPriority('--dsw-specific-sidebar-fill') === 'important',
+  d.body.style.getPropertyValue('--dsw-specific-sidebar-fill') + ' / ' + d.body.style.getPropertyPriority('--dsw-specific-sidebar-fill'))
 
 let effects = []
 const ctx = {
