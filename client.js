@@ -985,6 +985,13 @@ window.__ModuleLoader__.load({
       [data-shino-navcol] ~ [class*="centerCol"] { grid-column: 3 !important; }
       [data-shino-navcol] ~ [class*="rightbarCol"] { grid-column: 4 !important; }
 
+      /* sidebar 拖拽条：宿主的 left 是原第一列边界（cols.sidebar），
+         前置 48px 列后整条边界右移 48px；用 transform 视觉补偿（left 是 inline，
+         改不动）。rightbar 拖拽条靠右定位，不受影响。 */
+      [class*="handle"][data-side="sidebar"] {
+        transform: translateX(48px) !important;
+      }
+
       /* 左侧图标导航栏：在 navCol 内正常布局（不再 fixed）。
          图标 36px，hover 才展开标签。 */
       nav[class*="wtg9ga_panelList"] {
