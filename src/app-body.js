@@ -154,24 +154,21 @@ body[data-ds-dark-theme] {
  * 改成横向 flex：左边 45px 图标导航，右边 regionArea 承载品牌/新会话。
  */
 const SIDEBAR_LAYOUT_CSS = `
-/* root 正常布局，不再为 fixed 导航让位（导航已是 frame 的独立列）。 */
+/* root 正常布局。 */
 [class*="wtg9ga_root"] {
   overflow: hidden !important;
 }
 
-/* frame 是 4 列网格：navCol(48) | sidebarCol | centerCol | rightbarCol。
-   grid-template-columns 由 JS 在宿主设置后追加 48px 首列（持续维持），
-   这里只保证新列本身的尺寸与对齐。
-
-   关键：宿主给各列写了显式 grid-column（sidebar=1, center=2, rightbar=3），
-   前置一列后必须整体后移一位，否则 navCol 与 sidebarCol 都抢第 1 列 →
-   布局错乱。这里把三列统一 +1，navCol 固定第 1 列。 */
+/* navCol：48px 导航列，绝对定位覆盖在 frame 左边缘。
+   不占网格列 → 不修改宿主的 grid-template-columns（它表达拖拽后的列宽，
+   若用 !important 覆盖会冻住宽度，拖杆失效）。
+   sidebarCol 用 padding-left:48px 给导航让出视觉空间。 */
 [data-shino-navcol] {
-  grid-column: 1 !important;
-  grid-row: 1 !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
   width: 48px !important;
-  min-width: 48px !important;
-  max-width: 48px !important;
   box-sizing: border-box !important;
   display: flex !important;
   flex-direction: column !important;
@@ -181,15 +178,20 @@ const SIDEBAR_LAYOUT_CSS = `
   z-index: 45 !important;
 }
 
-[data-shino-navcol] ~ [class*="sidebarCol"] { grid-column: 2 !important; }
-[data-shino-navcol] ~ [class*="centerCol"] { grid-column: 3 !important; }
-[data-shino-navcol] ~ [class*="rightbarCol"] { grid-column: 4 !important; }
+/* sidebar 列右移 48px 给导航让位；box-sizing 保证不撑破列宽。
+   同时把 SidebarRoot 的 root 宽度改为 100%（跟随内容区）——
+   宿主给 root 写了 inline width = 整列宽，加了 48px 左内边距后
+   内容区只剩 W-48，root 仍占 W 会溢出 48px 被 overflow:hidden 裁掉右侧。 */
+[class*="frame"]:has(> [data-shino-navcol]) > [class*="sidebarCol"] {
+  padding-left: 48px !important;
+  box-sizing: border-box !important;
+}
 
-/* sidebar 拖拽条：宿主的 left 是原第一列边界（cols.sidebar），
-   前置 48px 列后整条边界右移 48px；用 transform 视觉补偿（left 是 inline，
-   改不动）。rightbar 拖拽条靠右定位，不受影响。 */
-[class*="handle"][data-side="sidebar"] {
-  transform: translateX(48px) !important;
+[class*="frame"]:has(> [data-shino-navcol]) > [class*="sidebarCol"] > *,
+[class*="frame"]:has(> [data-shino-navcol]) > [class*="sidebarCol"] [class*="wtg9ga_root"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 /* 左侧图标导航栏：在 navCol 内正常布局（不再 fixed）。
@@ -1559,20 +1561,9 @@ function applySidebarLayout(root) {
       frame.insertBefore(navCol, frame.firstChild);
     }
 
-    // 同步 frame 的 grid-template-columns：宿主写的是 3 列，
-    // 我们在最前面加 48px 一列。用 data 标记记录已处理过的原值，
-    // 每次按当前内联值重算，兼容宿主重渲染。
-    const style = frame.style;
-    const gtc = style.gridTemplateColumns || '';
-    if (gtc !== '' && gtc.indexOf('48px') !== 0) {
-      // 宿主写的是 3 列，第一列是 `${sidebar}px`，其余是 minmax(...)。
-      // 只解析第一列的 px 并减 48，其余列定义原样保留（避免切坏 minmax 内空格）。
-      const m = /^(\d+(?:\.\d+)?)px\s+([\s\S]+)$/.exec(gtc.trim());
-      if (m !== null) {
-        const sidebarPx = Math.max(0, parseFloat(m[1]) - 48);
-        style.setProperty('grid-template-columns', `48px ${sidebarPx}px ${m[2]}`, 'important');
-      }
-    }
+    // 不修改 frame 的 grid-template-columns —— 宿主用它表达拖拽后的列宽，
+    // 若用 !important 覆盖会压住宿主的更新，侧边栏宽度就冻住不随拖杆变化。
+    // navCol 改为绝对定位覆盖在 sidebarCol 左侧（见 CSS），不占网格列。
   }
 
   // 根容器：含 wtg9ga_root 类片段的元素。

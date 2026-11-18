@@ -14,17 +14,18 @@ function check (label, ok, detail) {
 // 静态 CSS 检查
 check('sidebar layout CSS constant', code.includes('SIDEBAR_LAYOUT_CSS'))
 check('layout CSS in early inject', /style\.textContent = CHROME_TRANSPARENT_CSS \+ SIDEBAR_LAYOUT_CSS/.test(code))
-check('columns reassigned after navCol insert',
-  /\[data-shino-navcol\] ~ \[class\*="sidebarCol"\] \{ grid-column: 2 !important/.test(code)
-  && /\[data-shino-navcol\] ~ \[class\*="centerCol"\] \{ grid-column: 3 !important/.test(code)
-  && /\[data-shino-navcol\] ~ \[class\*="rightbarCol"\] \{ grid-column: 4 !important/.test(code))
-check('sidebar drag handle offset +48px',
-  /\[class\*="handle"\]\[data-side="sidebar"\] \{[\s\S]{0,100}?transform: translateX\(48px\) !important/.test(code))
 check('navCol is 48px', /\[data-shino-navcol\] \{[\s\S]{0,200}?width: 48px !important/.test(code))
 check('navCol class mP3x-q_navCol', code.includes("navCol.className = 'mP3x-q_navCol'"))
 check('panelList not fixed (inside navCol)', /nav\[class\*="wtg9ga_panelList"\] \{[\s\S]{0,160}?position: static !important/.test(code))
-check('frame grid prepends 48px and shrinks sidebar', /parseFloat\(m\[1\]\) - 48/.test(code)
-  && /`48px \$\{sidebarPx\}px \$\{m\[2\]\}`/.test(code))
+check('navCol absolutely positioned (no grid override)',
+  /\[data-shino-navcol\] \{[\s\S]{0,120}?position: absolute !important/.test(code))
+check('grid-template-columns NOT overridden', !/setProperty\('grid-template-columns'/.test(code))
+check('sidebarCol gets padding-left 48px',
+  /\[class\*="frame"\]:has\(> \[data-shino-navcol\]\) > \[class\*="sidebarCol"\] \{[\s\S]{0,80}?padding-left: 48px !important/.test(code))
+check('sidebar root follows content width (no clipping)',
+  /\[class\*="sidebarCol"\] \[class\*="wtg9ga_root"\] \{[\s\S]{0,120}?width: 100% !important/.test(code))
+check('root width NOT modified', !/data-shino-orig-width/.test(code))
+check('no handle transform hack', !/data-side="sidebar"\] \{\s*transform/.test(code))
 check('panelRow 36px', /button\[class\*="wtg9ga_panelRow"\] \{[\s\S]{0,200}?width: 36px !important/.test(code))
 check('title hidden by default', /\[class\*="wtg9ga_panelTitle"\] \{[\s\S]{0,300}?opacity: 0 !important/.test(code))
 check('title visible on its own row hover',
@@ -73,7 +74,7 @@ check('home state keys defined', code.includes("'dsh-sea-explore-home-active'"))
 const dom = new JSDOM(`<!doctype html><html><body>
 <div class="mP3x-q_frame" id="frame" style="grid-template-columns: 260px minmax(0, 1fr) 0px">
   <div class="mP3x-q_sidebarCol" id="sidebarCol">
-    <div class="wtg9ga_root wtg9ga_quietBars" id="root">
+    <div class="wtg9ga_root wtg9ga_quietBars" id="root" style="width: 260px">
       <div class="wtg9ga_logoRow" id="logo">brand</div>
       <div class="wtg9ga_newSessionRow" id="newsession">new</div>
       <div class="wtg9ga_scrollRegion" id="scrollregion">
@@ -180,8 +181,10 @@ check('navCol is first child of frame', frameEl.firstElementChild === navCol)
 check('navCol class is mP3x-q_navCol', navCol !== null && navCol.className === 'mP3x-q_navCol')
 check('panelList moved into navCol', d.getElementById('panelList').parentElement === navCol,
   d.getElementById('panelList').parentElement && d.getElementById('panelList').parentElement.id)
-check('frame grid gets 48px first column', frameEl.style.getPropertyValue('grid-template-columns').indexOf('48px') === 0,
+check('frame grid untouched', frameEl.style.getPropertyValue('grid-template-columns').indexOf('48px') !== 0,
   frameEl.style.getPropertyValue('grid-template-columns'))
+check('root width untouched (no clipping)', d.getElementById('root').style.width === '260px',
+  d.getElementById('root').style.width)
 
 // 首页导航按钮：导航语义（非开关）。默认不高亮；点击首页高亮+显示 region；
 // 再点首页仍保持激活；点击插件（宿主面板）后首页取消高亮、region 收起。
