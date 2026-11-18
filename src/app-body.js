@@ -159,14 +159,22 @@ const SIDEBAR_LAYOUT_CSS = `
   overflow: hidden !important;
 }
 
-/* navCol：48px 导航列，绝对定位覆盖在 frame 左边缘。
-   不占网格列 → 不修改宿主的 grid-template-columns（它表达拖拽后的列宽，
-   若用 !important 覆盖会冻住宽度，拖杆失效）。
-   sidebarCol 用 padding-left:48px 给导航让出视觉空间。 */
+/* navCol：48px 导航列，绝对定位在 frame 左侧的 padding 区域内。
+   frame 加 padding-left:48px 后，所有 grid 列整体右移，navCol 占住这 48px，
+   不再覆盖主内容（侧边栏折叠成 0 宽时也安全）。
+   不改 grid-template-columns —— 中间列是 minmax(0,1fr)，会自动收缩吸收
+   这 48px，总宽不溢出；同时宿主的拖拽更新不被压住。 */
+[class*="frame"]:has(> [data-shino-navcol]) {
+  padding-left: 48px !important;
+  box-sizing: border-box !important;
+}
+
 [data-shino-navcol] {
   position: absolute !important;
   left: 0 !important;
-  top: 0 !important;
+  /* 从标题栏下方开始，避免与顶部栏（Windows 标题带）重叠。
+     --dsh-frame-chrome-top 在 Windows 下=标题栏高度，其它平台=0px。 */
+  top: var(--dsh-frame-chrome-top, 0px) !important;
   bottom: 0 !important;
   width: 48px !important;
   box-sizing: border-box !important;
@@ -178,15 +186,8 @@ const SIDEBAR_LAYOUT_CSS = `
   z-index: 45 !important;
 }
 
-/* sidebar 列右移 48px 给导航让位；box-sizing 保证不撑破列宽。
-   同时把 SidebarRoot 的 root 宽度改为 100%（跟随内容区）——
-   宿主给 root 写了 inline width = 整列宽，加了 48px 左内边距后
-   内容区只剩 W-48，root 仍占 W 会溢出 48px 被 overflow:hidden 裁掉右侧。 */
-[class*="frame"]:has(> [data-shino-navcol]) > [class*="sidebarCol"] {
-  padding-left: 48px !important;
-  box-sizing: border-box !important;
-}
-
+/* sidebarCol 不再需要自己让位（frame 的 padding-left 已整体让出 48px）；
+   只把 SidebarRoot 的 root 宽度约束到列宽内，避免宿主 inline width 溢出被裁。 */
 [class*="frame"]:has(> [data-shino-navcol]) > [class*="sidebarCol"] > *,
 [class*="frame"]:has(> [data-shino-navcol]) > [class*="sidebarCol"] [class*="wtg9ga_root"] {
   width: 100% !important;
@@ -1561,9 +1562,16 @@ function applySidebarLayout(root) {
       frame.insertBefore(navCol, frame.firstChild);
     }
 
-    // 不修改 frame 的 grid-template-columns —— 宿主用它表达拖拽后的列宽，
-    // 若用 !important 覆盖会压住宿主的更新，侧边栏宽度就冻住不随拖杆变化。
-    // navCol 改为绝对定位覆盖在 sidebarCol 左侧（见 CSS），不占网格列。
+    // navCol 要真实占据 grid 一列（不能 absolute 覆盖，否则盖住主内容）。
+    // 做法：给 grid-template-columns 前置 48px，用普通优先级写入（不加
+    // !important）——宿主 React 每次重写 inline style 都会覆盖它，但
+    // observer 监听 style 变化后会再次前置，最终稳定；同时因为不用
+    // !important，宿主拖拽时的宽度更新能正常落地，不会被冻住。
+    const style = frame.style;
+    const gtc = style.gridTemplateColumns || '';
+    if (gtc !== '' && gtc.indexOf('48px') !== 0) {
+      style.gridTemplateColumns = '48px ' + gtc.trim();
+    }
   }
 
   // 根容器：含 wtg9ga_root 类片段的元素。

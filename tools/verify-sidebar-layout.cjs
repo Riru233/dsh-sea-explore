@@ -14,14 +14,16 @@ function check (label, ok, detail) {
 // 静态 CSS 检查
 check('sidebar layout CSS constant', code.includes('SIDEBAR_LAYOUT_CSS'))
 check('layout CSS in early inject', /style\.textContent = CHROME_TRANSPARENT_CSS \+ SIDEBAR_LAYOUT_CSS/.test(code))
-check('navCol is 48px', /\[data-shino-navcol\] \{[\s\S]{0,200}?width: 48px !important/.test(code))
+check('navCol is 48px', /\[data-shino-navcol\] \{[\s\S]{0,400}?width: 48px !important/.test(code))
+check('navCol starts below titlebar', /\[data-shino-navcol\] \{[\s\S]{0,300}?top: var\(--dsh-frame-chrome-top, 0px\) !important/.test(code))
 check('navCol class mP3x-q_navCol', code.includes("navCol.className = 'mP3x-q_navCol'"))
 check('panelList not fixed (inside navCol)', /nav\[class\*="wtg9ga_panelList"\] \{[\s\S]{0,160}?position: static !important/.test(code))
 check('navCol absolutely positioned (no grid override)',
   /\[data-shino-navcol\] \{[\s\S]{0,120}?position: absolute !important/.test(code))
 check('grid-template-columns NOT overridden', !/setProperty\('grid-template-columns'/.test(code))
-check('sidebarCol gets padding-left 48px',
-  /\[class\*="frame"\]:has\(> \[data-shino-navcol\]\) > \[class\*="sidebarCol"\] \{[\s\S]{0,80}?padding-left: 48px !important/.test(code))
+check('frame gets padding-left 48px',
+  /\[class\*="frame"\]:has\(> \[data-shino-navcol\]\) \{[\s\S]{0,80}?padding-left: 48px !important/.test(code))
+check('navCol no longer overlaps content (frame reserves space)', !/\[class\*="sidebarCol"\] \{\s*padding-left: 48px/.test(code))
 check('sidebar root follows content width (no clipping)',
   /\[class\*="sidebarCol"\] \[class\*="wtg9ga_root"\] \{[\s\S]{0,120}?width: 100% !important/.test(code))
 check('root width NOT modified', !/data-shino-orig-width/.test(code))
