@@ -9,7 +9,7 @@ const SVGNS = "http://www.w3.org/2000/svg";
 // gamma = 边缘衰减曲线指数：边缘系数 E 在折射带内随到边框的距离线性从 1 降到 0，
 //         位移强度按 pow(E, gamma) 衰减，越小折射带越宽、边缘过渡越平缓，越大折射越集中在边框。
 // ★ 配置位置①：默认弯曲距离（px）。测试直接改下行的 bend 数字，或给元素加 data-glass-bend="80" 单元素覆盖。
-const global = { strength: 2.5, blur: 1, sat: 180, bend: 15, gamma: 2 };
+const global = { strength: 2.5, blur: 2.5, sat: 180, bend: 15, gamma: 2 };
 export type LiquidGlassParams = typeof global;
 export const LIQUID_GLASS_DEFAULTS: LiquidGlassParams = { ...global };
 // 边缘扭曲（位移滤镜）与饱和度需要 backdrop-filter 能引用 SVG 位移图：Chromium 内核画得了，
@@ -58,7 +58,7 @@ export type LiquidGlassPreset = {
 };
 export const LIQUID_GLASS_PRESETS: readonly LiquidGlassPreset[] = [
   { id: "frosted", strength: 0, blur: 12, bend: 0, needsDistortion: false },
-  { id: "clear", strength: 2.5, blur: 1, bend: 15, needsDistortion: true },
+  { id: "clear", strength: 2.5, blur: 2.5, bend: 15, needsDistortion: true },
   { id: "hazy", strength: 2.5, blur: 6, bend: 15, needsDistortion: true },
   { id: "eco", strength: 0, blur: 0, bend: 0, needsDistortion: false },
 ];

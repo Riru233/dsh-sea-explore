@@ -524,6 +524,65 @@ A dedicated rule empties the `pre` background for `.md-code-block` (and for any
 same translucent fill as the glassed code blocks. The stable `md-code-block`
 class is emitted on every fence container in both web and native builds.
 
+## Sidebar: navigation rail + content area
+
+The host `SidebarRoot.tsx` stacks the brand row, new-session row, scroll region
+and footer vertically. This bundle restructures it into a **navigation rail +
+content area** layout:
+
+```
+frame (grid: 4 columns)
+├─ navCol             48px, class mP3x-q_navCol (holds panelList)
+├─ sidebarCol
+│  └─ root           (logoRow/newSessionRow moved into regionArea)
+│     ├─ scrollRegion → regionArea + workspaces (conversation history)
+│     └─ footArea    settings
+├─ centerCol         conversation / other main panels
+└─ rightbarCol
+```
+
+`applySidebarLayout()` creates `navCol` as the frame's first child, moves
+`panelList` into it, and prepends `48px` to the host's inline
+`grid-template-columns` (re-applied on every style mutation so React rewrites
+cannot drop it). The nav no longer uses `fixed` positioning and the sidebar's
+`padding-left` hack is gone — it is a real grid column. Because nav buttons now
+live outside the sidebar subtree, navigation state is resolved through
+`getSidebar()` / `getNavScope()` helpers rather than `closest()`.
+
+DOM migration cannot be done in CSS, so `applySidebarLayout()` moves
+`logoRow` and `newSessionRow` into `regionArea` and marks the three key nodes.
+Because React re-renders would put those nodes back, a MutationObserver
+installed with the glass driver re-runs the (idempotent) migration on every DOM
+change. The host's original `sidebar.workspaces` content in `regionArea` — the
+conversation-history list — is **kept**, but only visible while the Workspace
+nav icon is highlighted (see below).
+
+`SIDEBAR_LAYOUT_CSS` turns `scrollArea` into a horizontal flex. The rail is
+`nav.panelList`, **fixed** to the window's left edge — the host collapses the
+sidebar column to width 0 on Windows, so a rail inside that column would vanish;
+fixed positioning keeps it visible whether the sidebar is open or closed. The
+SidebarRoot element gets `padding-left: 45px` to make room. (The padding cannot
+go on `[data-slot="sidebar"]`: slot anchors are `display: contents` per the
+renderer's `ANCHOR_STYLE`, so they generate no box and ignore margins/padding.)
+Icons are 36px; each label is a CSS tooltip on row hover. `_5Qcc8a_trigger`
+is sized to 36px too. `tools/verify-sidebar-layout.cjs` asserts the CSS and the
+real DOM migration in jsdom.
+
+A **Workspace** nav button (home icon) sits at the head of `panelList`. It is a
+navigation button, not a toggle: the app opens on it by default (persisted in
+localStorage), clicking a host panel (Plugins etc.) deactivates it, and clicking
+"More" (`aria-haspopup`) leaves it active. `regionArea` collapses to width 0
+when the Workspace button is inactive. Home-mode collapse state is remembered (only updated when the user manually
+toggles while on Home — leaving Home force-collapses without overwriting the
+memory); a deferred restore runs after the host settles, so returning to Home
+reliably re-expands. Clicking Home restores the **current main session** via
+`uiWorkspace.openSession(sessionId)` (found from `sessions.list` where
+`retainedBy.mainView > 0`), which is the host's own one-step
+`selection.set + selectPanel(null)` path — plain `selectPanel(null)` left the
+conversation empty and forced a manual session click. Blank sessions still just
+get `selectPanel(null)`. The panel "unpin" buttons are hidden and re-homed into
+a small right-click menu on each nav entry.
+
 ## 3. Session status line
 
 Slot `conversation.composer.dock`, entry id `dsh-sea-explore-strip`, order `20`.

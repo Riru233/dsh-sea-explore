@@ -147,6 +147,237 @@ body[data-ds-dark-theme] {
 }
 `;
 
+/* ------------------------------------- 侧边栏：导航岛 + 内容区左右排布 */
+/*
+ * 配合 applySidebarLayout() 的 DOM 迁移，这里负责视觉布局。
+ * 宿主 scrollArea 原本是 grid（panelList 在上、regionArea 在下），
+ * 改成横向 flex：左边 45px 图标导航，右边 regionArea 承载品牌/新会话。
+ */
+const SIDEBAR_LAYOUT_CSS = `
+/* root 正常布局，不再为 fixed 导航让位（导航已是 frame 的独立列）。 */
+[class*="wtg9ga_root"] {
+  overflow: hidden !important;
+}
+
+/* frame 是 4 列网格：navCol(48) | sidebarCol | centerCol | rightbarCol。
+   grid-template-columns 由 JS 在宿主设置后追加 48px 首列（持续维持），
+   这里只保证新列本身的尺寸与对齐。
+
+   关键：宿主给各列写了显式 grid-column（sidebar=1, center=2, rightbar=3），
+   前置一列后必须整体后移一位，否则 navCol 与 sidebarCol 都抢第 1 列 →
+   布局错乱。这里把三列统一 +1，navCol 固定第 1 列。 */
+[data-shino-navcol] {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  padding: 6px 0 !important;
+  overflow: visible !important;
+  z-index: 45 !important;
+}
+
+[data-shino-navcol] ~ [class*="sidebarCol"] { grid-column: 2 !important; }
+[data-shino-navcol] ~ [class*="centerCol"] { grid-column: 3 !important; }
+[data-shino-navcol] ~ [class*="rightbarCol"] { grid-column: 4 !important; }
+
+/* sidebar 拖拽条：宿主的 left 是原第一列边界（cols.sidebar），
+   前置 48px 列后整条边界右移 48px；用 transform 视觉补偿（left 是 inline，
+   改不动）。rightbar 拖拽条靠右定位，不受影响。 */
+[class*="handle"][data-side="sidebar"] {
+  transform: translateX(48px) !important;
+}
+
+/* 左侧图标导航栏：在 navCol 内正常布局（不再 fixed）。
+   图标 36px，hover 才展开标签。 */
+nav[class*="wtg9ga_panelList"] {
+  position: static !important;
+  width: 48px !important;
+  min-width: 48px !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+/* panelRow 与面板图标同为 36px。 */
+nav[class*="wtg9ga_panelList"] button[class*="wtg9ga_panelRow"] {
+  position: relative !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  padding: 0 !important;
+  justify-content: center !important;
+  overflow: visible !important;
+}
+
+/* 图标 36px：panelGlyph 撑满按钮，内部 SVG 等比收缩。 */
+nav[class*="wtg9ga_panelList"] [class*="wtg9ga_panelGlyph"] {
+  width: 36px !important;
+  height: 36px !important;
+  display: grid !important;
+  place-items: center !important;
+}
+
+nav[class*="wtg9ga_panelList"] [class*="wtg9ga_panelGlyph"] svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+/* 图标标签做成「工具提示」：默认隐藏，hover 单个按钮时只在
+   该项图标右侧浮出一个带底色/圆角/阴影的小气泡，而不是常驻文字。
+   宿主自带的 Tooltip 在 wide 模式下被禁用（disabled={wide}），
+   所以这里用 CSS 复刻一个等价的提示层。 */
+nav[class*="wtg9ga_panelList"] [class*="wtg9ga_panelTitle"] {
+  position: absolute !important;
+  display: block !important;
+  left: calc(100% + 10px) !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  white-space: nowrap !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: 60 !important;
+  padding: 5px 10px !important;
+  border-radius: 6px !important;
+  background: var(--dsw-alias-bg-overlay) !important;
+  color: var(--dsw-alias-label-primary) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  font-size: 12px !important;
+  line-height: 16px !important;
+  transition: opacity 100ms ease !important;
+}
+
+/* 只显示被 hover 的那一个按钮的提示。 */
+nav[class*="wtg9ga_panelList"] button[class*="wtg9ga_panelRow"]:hover [class*="wtg9ga_panelTitle"] {
+  opacity: 1 !important;
+}
+
+/* 右侧内容区：竖向排列。顶部是迁移进来的 logoRow + newSessionRow，
+   下面是 workspaces 槽（对话历史）。
+   非首页时宽度必须为 0：用 flex-basis/width 双重约束 + overflow 裁切，
+   首页激活时才展开到 flex:1。用 max-width 过渡避免内容突然挤出。 */
+[class*="wtg9ga_root"] [class*="wtg9ga_regionArea"] {
+  flex: 0 0 0 !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  transition: max-width 160ms ease, opacity 120ms ease !important;
+}
+[class*="wtg9ga_root"][data-shino-region-visible] [class*="wtg9ga_regionArea"] {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  max-width: 10000px !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* 首页激活时，压制宿主面板（插件等）的高亮底色，让首页是唯一高亮项。 */
+[class*="wtg9ga_root"][data-shino-home-active] nav[class*="wtg9ga_panelList"] [class*="wtg9ga_panelEntryActive"] button[class*="wtg9ga_panelRow"] {
+  background: transparent !important;
+}
+[class*="wtg9ga_root"][data-shino-home-active] nav[class*="wtg9ga_panelList"] button[aria-current="page"] {
+  background: transparent !important;
+}
+
+/* 「工作区」导航按钮：与 panelList 内其它图标同为 36px。
+   home 图标 + hover 工具提示（与 panelTitle 同款）。 */
+button[data-shino-workspace-nav] {
+  position: relative !important;
+  display: flex !important;
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  color: var(--dsw-alias-label-secondary) !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  overflow: visible !important;
+}
+
+button[data-shino-workspace-nav] .shino-workspace-glyph {
+  display: grid !important;
+  place-items: center !important;
+  width: 36px !important;
+  height: 36px !important;
+}
+
+button[data-shino-workspace-nav] .shino-workspace-glyph svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+button[data-shino-workspace-nav][data-shino-workspace-active] {
+  background: var(--dsw-alias-interactive-bg-hover) !important;
+  color: var(--dsw-alias-label-primary) !important;
+}
+
+/* 工具提示标签：默认隐藏，hover 该按钮才浮出。 */
+.shino-workspace-title {
+  position: absolute !important;
+  display: block !important;
+  left: calc(100% + 10px) !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  white-space: nowrap !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: 60 !important;
+  padding: 5px 10px !important;
+  border-radius: 6px !important;
+  background: var(--dsw-alias-bg-overlay) !important;
+  color: var(--dsw-alias-label-primary) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  font-size: 12px !important;
+  line-height: 16px !important;
+  transition: opacity 100ms ease !important;
+}
+
+button[data-shino-workspace-nav]:hover .shino-workspace-title {
+  opacity: 1 !important;
+}
+
+/* 收起侧边栏时保留侧边导航栏：导航已在 frame 的 navCol 内，
+   但宿主的 .collapsed .panelList{display:none} 仍会命中，这里覆盖掉。 */
+[data-shino-navcol] nav[class*="wtg9ga_panelList"] {
+  display: flex !important;
+  visibility: visible !important;
+}
+
+/* panelUnpin（导航图标右上角的固定/取消固定小按钮）去掉，
+   固定操作收纳到导航图标的右键菜单（见 JS）。 */
+nav[class*="wtg9ga_panelList"] [class*="wtg9ga_panelUnpin"] {
+  display: none !important;
+}
+
+/* _5Qcc8a_trigger：与导航图标同为 36px，无标签，hover 显示工具提示。
+   该元素本身带宿主的工具提示机制时，这里只统一尺寸与触发方式。 */
+[class*="_5Qcc8a_trigger"] {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+`;
+
 /* 首帧透明：在模块 factory 执行时就把 CSS 注入 <head>，
    这是插件能触及的最早时机——比 apply、比任何 React 组件的 render 都早。
    ctx.effect 里的同名 style 保留作卸载清理的兜底，两者靠固定 id 去重。
@@ -157,7 +388,7 @@ body[data-ds-dark-theme] {
   if (document.getElementById(ID) !== null) return;
   const style = document.createElement('style');
   style.id = ID;
-  style.textContent = CHROME_TRANSPARENT_CSS;
+  style.textContent = CHROME_TRANSPARENT_CSS + SIDEBAR_LAYOUT_CSS;
   (document.head || document.documentElement).appendChild(style);
   // 同时用内联 !important 直接钉在 body 上。
   // 主题 presenter 用 body.style.setProperty(name, value)（普通内联）写 token；
@@ -1207,6 +1438,444 @@ function ShinoStrip(props) {
   }, ...children);
 }
 
+/* ------------------------------------------- 侧边栏：导航岛 + 内容区布局 */
+/*
+ * 宿主 SidebarRoot.tsx 的默认结构是竖向堆叠：
+ *   root
+ *   ├─ logoRow         品牌
+ *   ├─ newSessionRow   新会话
+ *   ├─ scrollRegion
+ *   │  └─ scrollArea
+ *   │     ├─ nav.panelList   导航图标（竖排）
+ *   │     └─ regionArea      二级面板区
+ *   └─ footArea        底部设置
+ *
+ * 目标：panelList 与 regionArea 左右并排；左侧 45px 图标导航栏
+ * （图标 36px，hover 才展开文字标签），右侧 regionArea 承载
+ * logoRow + newSessionRow；root 下只剩 scrollRegion 一层。
+ *
+ * DOM 迁移无法用 CSS 完成，这里把 logoRow / newSessionRow 真实移动进
+ * regionArea；workspaces 槽（对话历史）保留显示，仅在首页激活时可见。
+ * React 每次重渲染会把节点放回原处，所以用 MutationObserver 持续维持。
+ */
+const SIDEBAR_MARK = 'data-shino-sidebar-layout';
+
+/* 导航状态持久化键。首页激活态与首页折叠态都跨页面/重渲染记忆。 */
+const HOME_STATE_KEY = 'dsh-sea-explore-home-active';
+const HOME_COLLAPSED_KEY = 'dsh-sea-explore-home-collapsed';
+
+function readFlag(key, fallback) {
+  try {
+    if (typeof localStorage === 'undefined') return fallback;
+    const v = localStorage.getItem(key);
+    return v === null ? fallback : v === '1';
+  } catch (e) { return fallback; }
+}
+function writeFlag(key, value) {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(key, value ? '1' : '0');
+  } catch (e) { /* 隐私模式下忽略 */ }
+}
+
+/**
+ * 初始化首页状态：软件默认打开时必须在首页。
+ * 首次加载（无 localStorage 记录）默认激活首页。
+ * 之后尊重用户上次的选择。
+ */
+function initHomeState() {
+  if (typeof localStorage === 'undefined') return null;
+  let state = null;
+  try { state = localStorage.getItem(HOME_STATE_KEY); } catch (e) { /* ignore */ }
+  if (state === null) {
+    // 默认打开即首页
+    writeFlag(HOME_STATE_KEY, true);
+    return true;
+  }
+  return state === '1';
+}
+
+/* 首页状态只初始化一次（首次加载默认首页）。 */
+let homeStateInitialized = false;
+
+/* 折叠记忆：只在首页激活状态「变化」的瞬间应用折叠策略，避免与用户操作打架。
+   记住首页模式下用户上次选择的折叠状态；非首页强制折叠。 */
+let lastHomeActiveForCollapse = null;
+
+function currentCollapsed() {
+  if (typeof document === 'undefined') return false;
+  const frame = document.querySelector('[data-sidebar-collapsed]');
+  // 属性存在即折叠；不存在即展开
+  return frame !== null && frame.hasAttribute('data-sidebar-collapsed');
+}
+
+function clickSidebarToggle() {
+  if (typeof document === 'undefined') return;
+  const toggle = document.querySelector('[data-sidebar-toggle]');
+  if (toggle !== null && typeof toggle.click === 'function') toggle.click();
+}
+
+function syncSidebarCollapse(homeActive, force = false) {
+  if (!force && homeActive === lastHomeActiveForCollapse) return;
+  lastHomeActiveForCollapse = homeActive;
+  const collapsed = currentCollapsed();
+  if (homeActive) {
+    // 回到首页：恢复记忆的折叠状态
+    const remembered = readFlag(HOME_COLLAPSED_KEY, false);
+    if (remembered !== collapsed) clickSidebarToggle();
+  } else {
+    // 离开首页：强制折叠侧边栏。
+    // 不在这里覆盖折叠记忆——记忆只由首页期间用户手动 toggle 时更新
+    // （见 onToggleClick），否则会把切换过程中的瞬时状态误记为用户选择。
+    if (!collapsed) clickSidebarToggle();
+  }
+}
+
+/** 侧边栏根：从 frame 内找（导航已迁出 sidebar，不能从按钮 closest）。 */
+function getSidebar() {
+  if (typeof document === 'undefined') return null;
+  return document.querySelector('[class*="frame"] [class*="wtg9ga_root"]');
+}
+
+/** 导航作用域：navCol 所在的 frame（状态挂在它上面，跨 DOM 迁移稳定）。 */
+function getNavScope() {
+  if (typeof document === 'undefined') return null;
+  const navCol = document.querySelector('[data-shino-navcol]');
+  return navCol !== null ? navCol.parentElement : null;
+}
+
+function applySidebarLayout(root) {
+  if (typeof document === 'undefined') return;
+  const doc = root && typeof root.querySelectorAll === 'function' ? root : document;
+
+  // 找到 AppFrame 根：含 centerCol 子元素的 frame（跨构建稳定）。
+  const frames = doc.querySelectorAll('[class*="frame"]:has(> [class*="centerCol"])');
+  for (const frame of frames) {
+    // 在 frame 下创建 navCol，作为第一个子元素（grid 第一列）。
+    let navCol = frame.querySelector(':scope > [data-shino-navcol]');
+    if (navCol === null) {
+      navCol = doc.createElement('div');
+      navCol.setAttribute('data-shino-navcol', '');
+      navCol.className = 'mP3x-q_navCol';
+      frame.insertBefore(navCol, frame.firstChild);
+    }
+
+    // 同步 frame 的 grid-template-columns：宿主写的是 3 列，
+    // 我们在最前面加 48px 一列。用 data 标记记录已处理过的原值，
+    // 每次按当前内联值重算，兼容宿主重渲染。
+    const style = frame.style;
+    const gtc = style.gridTemplateColumns || '';
+    if (gtc !== '' && gtc.indexOf('48px') !== 0) {
+      // 宿主写的是 3 列，第一列是 `${sidebar}px`，其余是 minmax(...)。
+      // 只解析第一列的 px 并减 48，其余列定义原样保留（避免切坏 minmax 内空格）。
+      const m = /^(\d+(?:\.\d+)?)px\s+([\s\S]+)$/.exec(gtc.trim());
+      if (m !== null) {
+        const sidebarPx = Math.max(0, parseFloat(m[1]) - 48);
+        style.setProperty('grid-template-columns', `48px ${sidebarPx}px ${m[2]}`, 'important');
+      }
+    }
+  }
+
+  // 根容器：含 wtg9ga_root 类片段的元素。
+  const roots = doc.querySelectorAll('[class*="wtg9ga_root"]');
+  for (const sidebar of roots) {
+    const logo = sidebar.querySelector(':scope > [class*="wtg9ga_logoRow"], :scope > [class*="logoRow"]');
+    const newsession = sidebar.querySelector(':scope > [class*="wtg9ga_newSessionRow"], :scope > [class*="newSessionRow"]');
+    const region = sidebar.querySelector('[class*="wtg9ga_regionArea"], [class*="regionArea"]');
+    const panelList = sidebar.querySelector('nav[class*="wtg9ga_panelList"], nav[class*="panelList"]')
+      || doc.querySelector('[data-shino-navcol] nav[class*="wtg9ga_panelList"]');
+
+    if (region === null || panelList === null) continue;
+
+    // 把 panelList 迁移到 frame 的 navCol（不再是 sidebar 的后代）。
+    const navCol = doc.querySelector('[data-shino-navcol]');
+    if (navCol !== null && panelList.parentElement !== navCol) {
+      navCol.appendChild(panelList);
+    }
+
+    sidebar.setAttribute(SIDEBAR_MARK, '');
+    region.setAttribute(SIDEBAR_MARK, 'region');
+    panelList.setAttribute(SIDEBAR_MARK, 'nav');
+
+    // 把品牌行与新会话行移入 regionArea（放在最前面）。
+    if (logo !== null && logo.parentElement !== region) region.insertBefore(logo, region.firstChild);
+    if (newsession !== null && newsession.parentElement !== region) {
+      // 紧跟在 logoRow 之后
+      if (logo !== null && logo.parentElement === region) {
+        region.insertBefore(newsession, logo.nextSibling);
+      } else {
+        region.insertBefore(newsession, region.firstChild);
+      }
+    }
+
+    // 插入「工作区」导航图标（home 图标），幂等。
+    let workspaceBtn = panelList.querySelector('[data-shino-workspace-nav]');
+    if (workspaceBtn === null) {
+      workspaceBtn = createWorkspaceNavButton(doc);
+      panelList.insertBefore(workspaceBtn, panelList.firstChild);
+    }
+
+    // 首页导航状态存在 sidebar 上（data-shino-home-active）。
+    // 首次加载默认激活首页（软件打开即在首页），之后尊重 localStorage。
+    if (homeStateInitialized === false) {
+      const active = initHomeState();
+      if (active && !sidebar.hasAttribute('data-shino-home-active')) {
+        sidebar.setAttribute('data-shino-home-active', '');
+      }
+      homeStateInitialized = true;
+    }
+    // 状态只由点击事件切换（见 installSidebarNavClicks），不读 aria-current，
+    // 避免与 React 重渲染对 aria-current 的恢复产生竞争。
+    const homeActive = sidebar.hasAttribute('data-shino-home-active');
+    // 页面切换瞬间应用折叠策略（首页记忆折叠、非首页强制折叠）
+    syncSidebarCollapse(homeActive);
+    if (homeActive) {
+      sidebar.setAttribute('data-shino-region-visible', '');
+      for (const b of panelList.querySelectorAll('[data-shino-workspace-nav]')) {
+        b.setAttribute('data-shino-workspace-active', '');
+      }
+    } else {
+      sidebar.removeAttribute('data-shino-region-visible');
+      for (const b of panelList.querySelectorAll('[data-shino-workspace-nav]')) {
+        b.removeAttribute('data-shino-workspace-active');
+      }
+    }
+  }
+}
+
+/**
+ * 切回首页：恢复「当前正在进行的主会话」并显示对话面板。
+ * 只 selectPanel(null) 不够——若 session selection 已清空，对话区会停在空状态，
+ * 用户还得手动点一次会话。这里用官方 uiWorkspace.openSession(sessionId)，
+ * 它内部 selection.set + selectPanel(null) 一步到位。
+ * 找不到主会话时（纯空对话）退化为 selectPanel(null)。
+ */
+function restoreConversation() {
+  const W = (typeof window !== 'undefined') ? window : null;
+  if (W === null) return;
+  const sessions = W.__dshSeaExploreSessions;
+  const workspace = W.__dshSeaExploreWorkspace;
+  const layout = W.__dshSeaExploreLayout;
+
+  // 找当前主会话：retainedBy.mainView > 0（宿主多处用这个判据）
+  let sessionId = null;
+  if (sessions !== undefined && sessions.list !== undefined
+    && typeof sessions.list.getSnapshot === 'function') {
+    try {
+      const snap = sessions.list.getSnapshot();
+      const byId = snap && snap.byId ? snap.byId : {};
+      for (const id of Object.keys(byId)) {
+        const row = byId[id];
+        if (row && row.retainedBy && (row.retainedBy.mainView ?? 0) > 0) {
+          sessionId = id;
+          break;
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  if (sessionId !== null && workspace !== undefined && typeof workspace.openSession === 'function') {
+    try {
+      workspace.openSession(sessionId);
+      return;
+    } catch (e) { /* 退化为 selectPanel(null) */ }
+  }
+  if (layout !== undefined && typeof layout.selectPanel === 'function') {
+    try { layout.selectPanel(null); } catch (e) { /* ignore */ }
+  }
+}
+
+/**
+ * 创建「工作区」导航按钮：home 图标 + hover 工具提示标签。
+ * 样式与 panelList 里的其它 36px 图标一致（见 SIDEBAR_LAYOUT_CSS）。
+ */
+function createWorkspaceNavButton(doc) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const btn = doc.createElement('button');
+  btn.setAttribute('type', 'button');
+  btn.setAttribute('data-shino-workspace-nav', '');
+  btn.setAttribute('aria-label', 'workspace');
+  btn.className = 'shino-workspace-nav';
+
+  const glyph = doc.createElement('span');
+  glyph.className = 'shino-workspace-glyph';
+  const svg = doc.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '20');
+  svg.setAttribute('height', '20');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.8');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  // home 图标：屋顶 + 房身 + 门
+  const path = doc.createElementNS(NS, 'path');
+  path.setAttribute('d', 'M3 10.5 12 3l9 7.5M5.5 9.5V21h13V9.5M9.5 21v-6h5v6');
+  svg.appendChild(path);
+  glyph.appendChild(svg);
+
+  const title = doc.createElement('span');
+  title.className = 'shino-workspace-title';
+  title.textContent = 'workspace';
+  title.setAttribute('data-shino-tooltip', '');
+
+  btn.appendChild(glyph);
+  btn.appendChild(title);
+
+  btn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    // 首页是导航按钮：激活首页、显示 regionArea。再次点击仍保持激活。
+    const sidebar = getSidebar();
+    if (sidebar !== null) {
+      sidebar.setAttribute('data-shino-home-active', '');
+      sidebar.setAttribute('data-shino-region-visible', '');
+      writeFlag(HOME_STATE_KEY, true);
+    }
+    // 立即给工作区按钮打高亮标记，不等 observer（桩环境/首帧也正确）。
+    for (const b of doc.querySelectorAll('[data-shino-workspace-nav]')) {
+      b.setAttribute('data-shino-workspace-active', '');
+    }
+    // 真正切回对话页并恢复当前主会话（否则只改 DOM 标记，
+    // 用户看到侧边栏展开但对话没恢复，还得手动点会话）。
+    restoreConversation();
+    // 回到首页：恢复首页记忆的折叠状态。
+    // 延后到宿主 openSession/selectPanel 触发的状态更新完成之后再读折叠态，
+    // 否则会读到切换过程中的旧值，导致「有时候不展开」。
+    setTimeout(() => syncSidebarCollapse(true, true), 0);
+  });
+  return btn;
+}
+
+/**
+ * 点击委托：点击 panelList 里的宿主面板按钮（插件等）时，
+ * 取消首页激活状态——首页不高亮，regionArea 收起。
+ * 首页按钮自身已 stopPropagation，不会走到这里。
+ */
+function installSidebarNavClicks() {
+  if (typeof document === 'undefined') return;
+  if (typeof window !== 'undefined' && window.__dshSeaExploreNavClicks !== undefined) return;
+  const onClick = (event) => {
+    const target = event.target;
+    if (target === null || target.closest === undefined) return;
+    // 命中任意宿主面板按钮；排除「更多」按钮（aria-haspopup=menu），
+    // 它只是展开子菜单，不应改变首页导航状态。
+    const hostBtn = target.closest('nav[class*="wtg9ga_panelList"] button[class*="wtg9ga_panelRow"]');
+    if (hostBtn === null) return;
+    if (hostBtn.hasAttribute('aria-haspopup')) return;
+    const sidebar = getSidebar();
+    if (sidebar === null) return;
+    sidebar.removeAttribute('data-shino-home-active');
+    sidebar.removeAttribute('data-shino-region-visible');
+    writeFlag(HOME_STATE_KEY, false);
+    // 工作区按钮已迁到 frame 的 navCol，不在 sidebar 内，用全局查询。
+    for (const b of document.querySelectorAll('[data-shino-workspace-nav]')) {
+      b.removeAttribute('data-shino-workspace-active');
+    }
+    // 离开首页：强制折叠侧边栏。
+    // 用 setTimeout 延后到宿主 onClick（selectPanel 可能自行展开侧边栏）
+    // 处理完毕后再折叠，否则会被宿主的展开覆盖。
+    setTimeout(() => syncSidebarCollapse(false, true), 0);
+  };
+
+  // 首页期间用户手动点 toggle 折叠/展开 → 记住这个折叠状态。
+  const onToggleClick = (event) => {
+    const target = event.target;
+    if (target === null || target.closest === undefined) return;
+    if (target.closest('[data-sidebar-toggle]') === null) return;
+    const sidebar = getSidebar();
+    if (sidebar === null || !sidebar.hasAttribute('data-shino-home-active')) return;
+    // 延后读取折叠结果（宿主 React 状态更新后）
+    setTimeout(() => writeFlag(HOME_COLLAPSED_KEY, currentCollapsed()), 0);
+  };
+  document.addEventListener('click', onToggleClick, true);
+  if (typeof window !== 'undefined') window.__dshSeaExploreToggleMem = onToggleClick;
+  document.addEventListener('click', onClick, true);
+  if (typeof window !== 'undefined') window.__dshSeaExploreNavClicks = onClick;
+
+  // 右键导航图标 → 弹出自制菜单，收纳原本右上角的「取消固定」按钮。
+  const onContextMenu = (event) => {
+    const target = event.target;
+    if (target === null || target.closest === undefined) return;
+    const entry = target.closest('nav[class*="wtg9ga_panelList"] [class*="wtg9ga_panelEntry"]');
+    if (entry === null) return;
+    // 排除首页按钮与「更多」按钮（它们不是可固定的面板）。
+    const row = entry.querySelector('button[class*="wtg9ga_panelRow"]');
+    if (row === null) return;
+    if (row.hasAttribute('aria-haspopup')) return;
+    const label = row.getAttribute('aria-label') || '';
+    if (label === 'workspace') return;
+    event.preventDefault();
+    // panelUnpin 只在宽模式渲染，窄栏模式下为 null；菜单仍要弹出，
+    // 只是「取消固定」在无 unpin 时不可用（隐藏该项）。
+    const unpin = entry.querySelector('button[class*="wtg9ga_panelUnpin"]');
+    showPanelContextMenu(document, event.clientX, event.clientY, unpin, label);
+  };
+  document.addEventListener('contextmenu', onContextMenu);
+  if (typeof window !== 'undefined') window.__dshSeaExploreNavContext = onContextMenu;
+}
+
+/** 显示导航图标的右键菜单（收纳取消固定操作）。 */
+function showPanelContextMenu(doc, x, y, unpinBtn, label) {
+  // 清掉已存在的菜单
+  const old = doc.getElementById('shino-nav-menu');
+  if (old !== null) old.remove();
+
+  const menu = doc.createElement('div');
+  menu.id = 'shino-nav-menu';
+  menu.setAttribute('data-shino-context-menu', '');
+  menu.style.cssText = 'position:fixed;z-index:10000;min-width:150px;padding:4px;'
+    + 'border-radius:8px;background:var(--dsw-alias-bg-overlay);'
+    + 'box-shadow:0 8px 24px rgba(0,0,0,.35);font-size:13px;'
+    + 'color:var(--dsw-alias-label-primary);';
+  menu.style.left = Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 10000) - 170) + 'px';
+  menu.style.top = Math.min(y, (typeof window !== 'undefined' ? window.innerHeight : 10000) - 80) + 'px';
+
+  // 菜单项文字：优先用宿主 unpin 按钮的 aria-label（本地化过），
+  // 否则用「取消固定 / Unpin」。
+  const text = (unpinBtn !== null ? unpinBtn.getAttribute('aria-label') : null)
+    || '取消固定 / Unpin';
+  const item = doc.createElement('button');
+  item.type = 'button';
+  item.textContent = text;
+  item.style.cssText = 'display:block;width:100%;padding:8px 10px;border:0;'
+    + 'border-radius:5px;background:transparent;color:inherit;cursor:'
+    + (unpinBtn !== null ? 'pointer' : 'default') + ';text-align:left;font:inherit;';
+  item.addEventListener('mouseenter', () => {
+    if (unpinBtn !== null) item.style.background = 'var(--dsw-alias-interactive-bg-hover)';
+  });
+  item.addEventListener('mouseleave', () => { item.style.background = 'transparent'; });
+  item.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // 触发宿主原本的取消固定按钮，复用它的 setPinned 逻辑。
+    // 窄栏模式下 panelUnpin 不渲染，此时该项不可操作。
+    if (unpinBtn !== null) unpinBtn.click();
+    menu.remove();
+  });
+  menu.appendChild(item);
+  (doc.body || doc.documentElement).appendChild(menu);
+
+  // 点击空白处关闭菜单
+  const close = (e) => {
+    if (e.target !== menu && !menu.contains(e.target)) {
+      menu.remove();
+      doc.removeEventListener('pointerdown', close, true);
+    }
+  };
+  setTimeout(() => doc.addEventListener('pointerdown', close, true), 0);
+}
+
+
+/** 持续维持侧边栏布局：React 重渲染会撤销 DOM 迁移，这里兜住。 */
+function installSidebarLayoutObserver() {
+  if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
+  if (typeof window !== 'undefined' && window.__dshSeaExploreSidebarObserver !== undefined) return;
+
+  applySidebarLayout(document);
+  installSidebarNavClicks();
+  const observer = new MutationObserver(() => applySidebarLayout(document));
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+  if (typeof window !== 'undefined') window.__dshSeaExploreSidebarObserver = observer;
+}
+
 /**
  * 挂玻璃的驱动组件：坐在输入框下方的槽位里，每次 commit 后用
  * useLayoutEffect 补齐新冒出来的气泡；再挂一个 MutationObserver 兜住
@@ -1219,6 +1888,7 @@ function GlassDriver() {
   React.useLayoutEffect(() => {
     paintGlass(document);
     installGlassEffectsOnce();
+    installSidebarLayoutObserver();
 
     if (typeof MutationObserver === 'undefined') return undefined;
     let queued = false;
@@ -1248,6 +1918,20 @@ return {
     const locale = ctx.get('locale');
     const theme = ctx.get('theme');
 
+    // 暴露 service 给导航按钮：
+    //   · layout      → selectPanel(null) 切回对话面板
+    //   · uiWorkspace → openSession(sessionId) 恢复当前会话（官方一步到位 API）
+    //   · sessions    → 找到 retainedBy.mainView > 0 的当前主会话
+    // 用 ctx.get 可选读取，缺失时降级为仅 DOM 标记（不影响插件加载）。
+    const layout = ctx.get('layout');
+    const uiWorkspace = ctx.get('uiWorkspace');
+    const sessions = ctx.get('sessions');
+    if (typeof window !== 'undefined') {
+      if (layout !== undefined) window.__dshSeaExploreLayout = layout;
+      if (uiWorkspace !== undefined) window.__dshSeaExploreWorkspace = uiWorkspace;
+      if (sessions !== undefined) window.__dshSeaExploreSessions = sessions;
+    }
+
     // 重载清理：清空上一轮遗留的同名 filter，避免 lg-N 冲突导致
     // 滤镜缩减/错位；并建立跨重载幂等的光效安装标记。
     resetLiquidGlassState();
@@ -1263,7 +1947,7 @@ return {
         if (style === null) {
           style = document.createElement('style');
           style.id = id;
-          style.textContent = CHROME_TRANSPARENT_CSS;
+          style.textContent = CHROME_TRANSPARENT_CSS + SIDEBAR_LAYOUT_CSS;
           (document.head || document.documentElement).appendChild(style);
         }
         const previous = document.body.style.getPropertyValue('--dsw-specific-sidebar-fill');

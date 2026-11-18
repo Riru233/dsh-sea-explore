@@ -13,7 +13,7 @@ function check (label, ok, detail) {
 
 // 静态结构检查
 check('reset function exists', code.includes('function resetLiquidGlassState()'))
-check('reset called at apply', /apply\(ctx\) \{[\s\S]{0,300}?resetLiquidGlassState\(\);/.test(code))
+check('reset called at apply', /apply\(ctx\) \{[\s\S]{0,1500}?resetLiquidGlassState\(\);/.test(code))
 check('shared defs id used', code.includes("getElementById('filter-defs')"))
 check('old filters cleared', /querySelectorAll\(':scope > filter'\)\] \)?old\.remove/.test(code)
   || /for \(const old of \[\.\.\.defs\.querySelectorAll\(':scope > filter'\)\]\) old\.remove\(\)/.test(code))
