@@ -18,9 +18,9 @@ check('navCol is 48px', /\[data-shino-navcol\] \{[\s\S]{0,400}?width: 48px !impo
 check('navCol starts below titlebar', /\[data-shino-navcol\] \{[\s\S]{0,300}?top: var\(--dsh-frame-chrome-top, 0px\) !important/.test(code))
 check('navCol class mP3x-q_navCol', code.includes("navCol.className = 'mP3x-q_navCol'"))
 check('panelList not fixed (inside navCol)', /nav\[class\*="wtg9ga_panelList"\] \{[\s\S]{0,160}?position: static !important/.test(code))
-check('navCol absolutely positioned (no grid override)',
-  /\[data-shino-navcol\] \{[\s\S]{0,120}?position: absolute !important/.test(code))
-check('grid-template-columns NOT overridden', !/setProperty\('grid-template-columns'/.test(code))
+check('frame reserves 48px via padding',
+  /\[class\*="frame"\]:has\(> \[data-shino-navcol\]\) \{[\s\S]{0,80}?padding-left: 48px !important/.test(code))
+check('grid-template-columns NOT touched by JS', !/style\.gridTemplateColumns = '48px/.test(code))
 check('frame gets padding-left 48px',
   /\[class\*="frame"\]:has\(> \[data-shino-navcol\]\) \{[\s\S]{0,80}?padding-left: 48px !important/.test(code))
 check('navCol no longer overlaps content (frame reserves space)', !/\[class\*="sidebarCol"\] \{\s*padding-left: 48px/.test(code))
@@ -183,7 +183,7 @@ check('navCol is first child of frame', frameEl.firstElementChild === navCol)
 check('navCol class is mP3x-q_navCol', navCol !== null && navCol.className === 'mP3x-q_navCol')
 check('panelList moved into navCol', d.getElementById('panelList').parentElement === navCol,
   d.getElementById('panelList').parentElement && d.getElementById('panelList').parentElement.id)
-check('frame grid untouched', frameEl.style.getPropertyValue('grid-template-columns').indexOf('48px') !== 0,
+check('frame grid untouched (padding does the reserving)', frameEl.style.getPropertyValue('grid-template-columns').indexOf('48px') !== 0,
   frameEl.style.getPropertyValue('grid-template-columns'))
 check('root width untouched (no clipping)', d.getElementById('root').style.width === '260px',
   d.getElementById('root').style.width)

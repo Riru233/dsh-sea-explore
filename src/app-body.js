@@ -1562,16 +1562,11 @@ function applySidebarLayout(root) {
       frame.insertBefore(navCol, frame.firstChild);
     }
 
-    // navCol 要真实占据 grid 一列（不能 absolute 覆盖，否则盖住主内容）。
-    // 做法：给 grid-template-columns 前置 48px，用普通优先级写入（不加
-    // !important）——宿主 React 每次重写 inline style 都会覆盖它，但
-    // observer 监听 style 变化后会再次前置，最终稳定；同时因为不用
-    // !important，宿主拖拽时的宽度更新能正常落地，不会被冻住。
-    const style = frame.style;
-    const gtc = style.gridTemplateColumns || '';
-    if (gtc !== '' && gtc.indexOf('48px') !== 0) {
-      style.gridTemplateColumns = '48px ' + gtc.trim();
-    }
+    // 不修改 frame 的 grid-template-columns。
+    // 导航列由 CSS 用 position:absolute 放在 frame 的 padding-left:48px 区域里，
+    // 所有 grid 列整体右移、中间列（minmax(0,1fr)）自动收缩吸收这 48px。
+    // 若这里再往 grid 前置一列，会与 padding 叠加成双倍让位 → 布局错乱；
+    // 而且用 !important 覆盖 grid 还会压住宿主的拖拽更新，宽度就冻住了。
   }
 
   // 根容器：含 wtg9ga_root 类片段的元素。
@@ -1632,6 +1627,9 @@ function applySidebarLayout(root) {
       for (const b of panelList.querySelectorAll('[data-shino-workspace-nav]')) {
         b.setAttribute('data-shino-workspace-active', '');
       }
+      // 在首页期间持续跟踪当前会话（用户可能在会话列表里切换），
+      // 保证离开时记住的永远是最新那个。
+      rememberCurrentSession();
     } else {
       sidebar.removeAttribute('data-shino-region-visible');
       for (const b of panelList.querySelectorAll('[data-shino-workspace-nav]')) {
@@ -1642,35 +1640,52 @@ function applySidebarLayout(root) {
 }
 
 /**
- * 切回首页：恢复「当前正在进行的主会话」并显示对话面板。
- * 只 selectPanel(null) 不够——若 session selection 已清空，对话区会停在空状态，
- * 用户还得手动点一次会话。这里用官方 uiWorkspace.openSession(sessionId)，
- * 它内部 selection.set + selectPanel(null) 一步到位。
- * 找不到主会话时（纯空对话）退化为 selectPanel(null)。
+ * 当前主会话的 id（离开首页前记住，回首页时用它恢复）。
+ * 为什么需要它：切到插件页后宿主可能释放 mainView 引用，届时再按
+ * retainedBy.mainView 找不到会话，右侧就会停在空白/残留状态。
+ */
+let rememberedSessionId = null;
+
+/** 读出当前主会话 id（retainedBy.mainView > 0），没找到返回 null。 */
+function currentMainSessionId() {
+  const W = (typeof window !== 'undefined') ? window : null;
+  if (W === null) return null;
+  const sessions = W.__dshSeaExploreSessions;
+  if (sessions === undefined || sessions.list === undefined
+    || typeof sessions.list.getSnapshot !== 'function') return null;
+  try {
+    const snap = sessions.list.getSnapshot();
+    const byId = snap && snap.byId ? snap.byId : {};
+    for (const id of Object.keys(byId)) {
+      const row = byId[id];
+      if (row && row.retainedBy && (row.retainedBy.mainView ?? 0) > 0) return id;
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+/** 离开首页时调用：记住当前会话，供回首页时恢复。 */
+function rememberCurrentSession() {
+  const id = currentMainSessionId();
+  if (id !== null) rememberedSessionId = id;
+}
+
+/**
+ * 切回首页：恢复「切换前那个会话」并显示对话面板。
+ *
+ * 顺序：
+ *   1. 先试 rememberedSessionId（离开首页前记住的，最可靠）；
+ *   2. 再试当前 retainedBy.mainView > 0（若宿主还保留着引用）；
+ *   3. 都没有就只切回对话面板（空对话/新会话界面）。
+ * 用官方 uiWorkspace.openSession(id)，内部是 selection.set + selectPanel(null)。
  */
 function restoreConversation() {
   const W = (typeof window !== 'undefined') ? window : null;
   if (W === null) return;
-  const sessions = W.__dshSeaExploreSessions;
   const workspace = W.__dshSeaExploreWorkspace;
   const layout = W.__dshSeaExploreLayout;
 
-  // 找当前主会话：retainedBy.mainView > 0（宿主多处用这个判据）
-  let sessionId = null;
-  if (sessions !== undefined && sessions.list !== undefined
-    && typeof sessions.list.getSnapshot === 'function') {
-    try {
-      const snap = sessions.list.getSnapshot();
-      const byId = snap && snap.byId ? snap.byId : {};
-      for (const id of Object.keys(byId)) {
-        const row = byId[id];
-        if (row && row.retainedBy && (row.retainedBy.mainView ?? 0) > 0) {
-          sessionId = id;
-          break;
-        }
-      }
-    } catch (e) { /* ignore */ }
-  }
+  const sessionId = rememberedSessionId !== null ? rememberedSessionId : currentMainSessionId();
 
   if (sessionId !== null && workspace !== undefined && typeof workspace.openSession === 'function') {
     try {
@@ -1762,6 +1777,9 @@ function installSidebarNavClicks() {
     if (hostBtn.hasAttribute('aria-haspopup')) return;
     const sidebar = getSidebar();
     if (sidebar === null) return;
+    // 离开首页前记住当前会话——回首页时用它恢复（不能等回来再找，
+    // 那时宿主可能已释放 mainView 引用，右侧会停在空白）。
+    rememberCurrentSession();
     sidebar.removeAttribute('data-shino-home-active');
     sidebar.removeAttribute('data-shino-region-visible');
     writeFlag(HOME_STATE_KEY, false);
@@ -1912,7 +1930,10 @@ function GlassDriver() {
 /* ---------------------------------------------------------------- 注册 */
 
 return {
-  inject: ['slots'],
+  // 必需依赖：slots（注册 UI）+ layout/uiWorkspace/sessions（导航与会话恢复）。
+  // 之前只声明 slots，导致 ctx.get('uiWorkspace') 拿到 undefined，
+  // 回首页时 openSession 从未被调用，右侧停在空白/残留页面。
+  inject: ['slots', 'layout', 'uiWorkspace', 'sessions'],
   apply(ctx) {
     const locale = ctx.get('locale');
     const theme = ctx.get('theme');

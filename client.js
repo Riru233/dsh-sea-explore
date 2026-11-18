@@ -821,7 +821,7 @@ window.__ModuleLoader__.load({
        *   「用户输入框没有透明，需要自行透明化」。
        * ========================================================================== */
       const LG = __ShinoLiquidGlass;
-
+      
       /* ------------------------- 重载（HMR / 插件重载）时的状态清理 -------------
        * 首次加载正常、软件内重载后「滤镜缩减、光效重叠」的根因有两处，
        * 都在 vendor/liquidglass.js 的模块级状态里：
@@ -841,10 +841,10 @@ window.__ModuleLoader__.load({
        *   · 用 window 级标记把两个 install 调用包一层，跨模块实例幂等。
        */
       const LG_RELOAD_NS = '__dshSeaExploreLgReload';
-
+      
       function resetLiquidGlassState() {
         if (typeof document === 'undefined') return;
-
+      
         // 1. 复用同一个 defs 并清空旧 filter：新实例的 lg-0… 从干净状态开始。
         let defs = document.getElementById('filter-defs');
         if (defs === null) {
@@ -860,7 +860,7 @@ window.__ModuleLoader__.load({
         }
         // 只清 filter，保留 defs 节点本身——vendor 持有对它的一次引用。
         for (const old of [...defs.querySelectorAll(':scope > filter')]) old.remove();
-
+      
         // 2. 上一轮玻璃化过的 DOM 元素上的标记与内联滤镜一并清掉。
         //    否则新实例的 paintGlass 看到 data-shino-glass 已存在就跳过，
         //    元素仍指向刚被清空的旧 filter id → 滤镜不生效/错位。
@@ -873,12 +873,12 @@ window.__ModuleLoader__.load({
         for (const el of document.querySelectorAll(marks.join(', '))) {
           stripGlass(el);
         }
-
+      
         // 3. 光效监听跨模块实例只装一次。
         const state = (typeof window !== 'undefined' ? window : globalThis);
         if (state[LG_RELOAD_NS] === undefined) state[LG_RELOAD_NS] = { lightsInstalled: false };
       }
-
+      
       /**
        * 跨重载幂等地安装光效监听。
        *
@@ -897,7 +897,7 @@ window.__ModuleLoader__.load({
         LG.installGlassLight();
         state[LG_RELOAD_NS].lightsInstalled = true;
       }
-
+      
       /* --------------------------------------------- 首帧即生效的外壳透明规则 */
       /*
        * 侧边栏与 Windows 顶部标题带的背景来自 --dsw-specific-sidebar-fill。
@@ -926,7 +926,7 @@ window.__ModuleLoader__.load({
       body[data-ds-dark-theme] {
         --dsw-specific-sidebar-fill: transparent !important;
       }
-
+      
       /* 元素级兜底：这些背景不经该 token（来自 --dsw-alias-bg-base 等），
          单独掏空。frame 用 :has(> centerCol) 锁定 AppFrame 根，
          避免命中同名的会话宽度控制 _frame。 */
@@ -937,7 +937,7 @@ window.__ModuleLoader__.load({
       [data-sidebar-scrollport] {
         background: transparent !important;
       }
-
+      
       /* 窗口按钮（最小化/最大化/关闭）：在 [data-shell-leading] 座位里，
          宿主给它们铺了实底，初次加载时跟着侧边栏一起显得不透明。 */
       [data-shell-leading] button,
@@ -946,7 +946,7 @@ window.__ModuleLoader__.load({
         background: transparent !important;
       }
       `;
-
+      
       /* ------------------------------------- 侧边栏：导航岛 + 内容区左右排布 */
       /*
        * 配合 applySidebarLayout() 的 DOM 迁移，这里负责视觉布局。
@@ -958,7 +958,7 @@ window.__ModuleLoader__.load({
       [class*="wtg9ga_root"] {
         overflow: hidden !important;
       }
-
+      
       /* navCol：48px 导航列，绝对定位在 frame 左侧的 padding 区域内。
          frame 加 padding-left:48px 后，所有 grid 列整体右移，navCol 占住这 48px，
          不再覆盖主内容（侧边栏折叠成 0 宽时也安全）。
@@ -968,7 +968,7 @@ window.__ModuleLoader__.load({
         padding-left: 48px !important;
         box-sizing: border-box !important;
       }
-
+      
       [data-shino-navcol] {
         position: absolute !important;
         left: 0 !important;
@@ -985,7 +985,7 @@ window.__ModuleLoader__.load({
         overflow: visible !important;
         z-index: 45 !important;
       }
-
+      
       /* sidebarCol 不再需要自己让位（frame 的 padding-left 已整体让出 48px）；
          只把 SidebarRoot 的 root 宽度约束到列宽内，避免宿主 inline width 溢出被裁。 */
       [class*="frame"]:has(> [data-shino-navcol]) > [class*="sidebarCol"] > *,
@@ -994,7 +994,7 @@ window.__ModuleLoader__.load({
         max-width: 100% !important;
         box-sizing: border-box !important;
       }
-
+      
       /* 左侧图标导航栏：在 navCol 内正常布局（不再 fixed）。
          图标 36px，hover 才展开标签。 */
       nav[class*="wtg9ga_panelList"] {
@@ -1007,7 +1007,7 @@ window.__ModuleLoader__.load({
         padding: 0 !important;
         overflow: visible !important;
       }
-
+      
       /* panelRow 与面板图标同为 36px。 */
       nav[class*="wtg9ga_panelList"] button[class*="wtg9ga_panelRow"] {
         position: relative !important;
@@ -1018,7 +1018,7 @@ window.__ModuleLoader__.load({
         justify-content: center !important;
         overflow: visible !important;
       }
-
+      
       /* 图标 36px：panelGlyph 撑满按钮，内部 SVG 等比收缩。 */
       nav[class*="wtg9ga_panelList"] [class*="wtg9ga_panelGlyph"] {
         width: 36px !important;
@@ -1026,12 +1026,12 @@ window.__ModuleLoader__.load({
         display: grid !important;
         place-items: center !important;
       }
-
+      
       nav[class*="wtg9ga_panelList"] [class*="wtg9ga_panelGlyph"] svg {
         width: 20px !important;
         height: 20px !important;
       }
-
+      
       /* 图标标签做成「工具提示」：默认隐藏，hover 单个按钮时只在
          该项图标右侧浮出一个带底色/圆角/阴影的小气泡，而不是常驻文字。
          宿主自带的 Tooltip 在 wide 模式下被禁用（disabled={wide}），
@@ -1055,12 +1055,12 @@ window.__ModuleLoader__.load({
         line-height: 16px !important;
         transition: opacity 100ms ease !important;
       }
-
+      
       /* 只显示被 hover 的那一个按钮的提示。 */
       nav[class*="wtg9ga_panelList"] button[class*="wtg9ga_panelRow"]:hover [class*="wtg9ga_panelTitle"] {
         opacity: 1 !important;
       }
-
+      
       /* 右侧内容区：竖向排列。顶部是迁移进来的 logoRow + newSessionRow，
          下面是 workspaces 槽（对话历史）。
          非首页时宽度必须为 0：用 flex-basis/width 双重约束 + overflow 裁切，
@@ -1085,7 +1085,7 @@ window.__ModuleLoader__.load({
         opacity: 1 !important;
         pointer-events: auto !important;
       }
-
+      
       /* 首页激活时，压制宿主面板（插件等）的高亮底色，让首页是唯一高亮项。 */
       [class*="wtg9ga_root"][data-shino-home-active] nav[class*="wtg9ga_panelList"] [class*="wtg9ga_panelEntryActive"] button[class*="wtg9ga_panelRow"] {
         background: transparent !important;
@@ -1093,7 +1093,7 @@ window.__ModuleLoader__.load({
       [class*="wtg9ga_root"][data-shino-home-active] nav[class*="wtg9ga_panelList"] button[aria-current="page"] {
         background: transparent !important;
       }
-
+      
       /* 「工作区」导航按钮：与 panelList 内其它图标同为 36px。
          home 图标 + hover 工具提示（与 panelTitle 同款）。 */
       button[data-shino-workspace-nav] {
@@ -1114,24 +1114,24 @@ window.__ModuleLoader__.load({
         cursor: pointer !important;
         overflow: visible !important;
       }
-
+      
       button[data-shino-workspace-nav] .shino-workspace-glyph {
         display: grid !important;
         place-items: center !important;
         width: 36px !important;
         height: 36px !important;
       }
-
+      
       button[data-shino-workspace-nav] .shino-workspace-glyph svg {
         width: 20px !important;
         height: 20px !important;
       }
-
+      
       button[data-shino-workspace-nav][data-shino-workspace-active] {
         background: var(--dsw-alias-interactive-bg-hover) !important;
         color: var(--dsw-alias-label-primary) !important;
       }
-
+      
       /* 工具提示标签：默认隐藏，hover 该按钮才浮出。 */
       .shino-workspace-title {
         position: absolute !important;
@@ -1152,24 +1152,24 @@ window.__ModuleLoader__.load({
         line-height: 16px !important;
         transition: opacity 100ms ease !important;
       }
-
+      
       button[data-shino-workspace-nav]:hover .shino-workspace-title {
         opacity: 1 !important;
       }
-
+      
       /* 收起侧边栏时保留侧边导航栏：导航已在 frame 的 navCol 内，
          但宿主的 .collapsed .panelList{display:none} 仍会命中，这里覆盖掉。 */
       [data-shino-navcol] nav[class*="wtg9ga_panelList"] {
         display: flex !important;
         visibility: visible !important;
       }
-
+      
       /* panelUnpin（导航图标右上角的固定/取消固定小按钮）去掉，
          固定操作收纳到导航图标的右键菜单（见 JS）。 */
       nav[class*="wtg9ga_panelList"] [class*="wtg9ga_panelUnpin"] {
         display: none !important;
       }
-
+      
       /* _5Qcc8a_trigger：与导航图标同为 36px，无标签，hover 显示工具提示。
          该元素本身带宿主的工具提示机制时，这里只统一尺寸与触发方式。 */
       [class*="_5Qcc8a_trigger"] {
@@ -1180,7 +1180,7 @@ window.__ModuleLoader__.load({
         box-sizing: border-box !important;
       }
       `;
-
+      
       /* 首帧透明：在模块 factory 执行时就把 CSS 注入 <head>，
          这是插件能触及的最早时机——比 apply、比任何 React 组件的 render 都早。
          ctx.effect 里的同名 style 保留作卸载清理的兜底，两者靠固定 id 去重。
@@ -1200,7 +1200,7 @@ window.__ModuleLoader__.load({
           document.body.style.setProperty('--dsw-specific-sidebar-fill', 'transparent', 'important');
         }
       })();
-
+      
       /**
        * 维持 sidebar token 的透明内联值。
        * 主题切换/初始化时 presenter 会重新写普通内联值，这里在每轮玻璃扫描时
@@ -1210,9 +1210,9 @@ window.__ModuleLoader__.load({
         if (typeof document === 'undefined' || document.body === null) return;
         document.body.style.setProperty('--dsw-specific-sidebar-fill', 'transparent', 'important');
       }
-
+      
       /* ------------------------------------------------------------ 玻璃的样式 */
-
+      
       // 玻璃的「边饰」照抄 reference usage.tsx 的四条：
       //   borderTop / borderBottom  #fff6            上下缘高光（玻璃截住光的两条边）
       //   outline                   rgba(35,35,35,.3) 深色分离环，贴在边框外侧
@@ -1246,7 +1246,7 @@ window.__ModuleLoader__.load({
         outline: 1px solid rgba(35, 35, 35, 0.3) !important;
         box-shadow: 0 8px 16px rgba(40, 40, 40, 0.2) !important;
       }
-
+      
       /* 菜单：边饰画在**表面**上，不在材质层上。
          材质层是 inset:0 的子元素，它的 outline 会被表面裁掉、看不见；
          表面才是菜单真正有形状的那一层。 */
@@ -1257,7 +1257,7 @@ window.__ModuleLoader__.load({
         outline: 1px solid rgba(35, 35, 35, 0.3) !important;
         box-shadow: 0 8px 16px rgba(40, 40, 40, 0.2) !important;
       }
-
+      
       /* 暗色只加深投影，outline 一律保持上面那条（输入框卡片也在其中）。 */
       body[data-ds-dark-theme] [data-composer-card][data-shino-card],
       body[data-ds-dark-theme] [data-message-bubble][data-shino-glass],
@@ -1275,21 +1275,21 @@ window.__ModuleLoader__.load({
         box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45) !important;
       }
       `;
-
+      
       const GLASS_CSS = GLASS_EDGE_CSS + `
       /* 会话头部 → 液态玻璃浮岛（island）。
          浮岛是留在文档流里的独立玻璃卡片：宽度自适应、最大 800px、水平居中、
          四周 10px 留白、20px 圆角，视觉上悬浮在内容之上。
-
+      
          不把它设为 fixed —— 这个 header 同时是窗口拖拽区（data-window-drag），
          脱离文档流会让拖拽区与下方内容错位；留在流里它自然占据顶部一段高度，
          内容从岛下方开始，不会被遮住，这才是「浮岛」而非「贴顶悬浮条」。
-
+      
          宽度自适应、最大 800px：width:100% 让它铺满可用宽度，
          max-width:800px 封顶；margin:10px auto 在超过 800px 时左右居中。
          四周 10px 留白用 margin 实现（窄屏下 width 100% + margin 可能溢出，
          所以用 calc 扣掉两侧 10px）。
-
+      
          滤镜挂在元素自身：元素自身的 backdrop-filter 采样它背后的页面内容，
          折射出来的就是玻璃岛想要的效果。 */
       header[data-window-drag]:has(> [data-conversation-header-leading])[data-shino-glass] {
@@ -1302,13 +1302,13 @@ window.__ModuleLoader__.load({
         z-index: 40 !important;
         box-sizing: border-box !important;
       }
-
+      
       /* 浮岛圆角要裁住内部内容；宿主的实底根在岛背后，
          这里把岛的直接子级也收进圆角，避免方形底色从圆角处露出。 */
       header[data-window-drag]:has(> [data-conversation-header-leading])[data-shino-glass] > * {
         border-radius: inherit;
       }
-
+      
       /* 输入框卡片：滤镜由它自己的滤镜层承担（见 [data-shino-card-filter]），
          这里只负责边饰。卡片自身不带 backdrop-filter，也不带背景色——
          这样渲染在卡片内部的弹窗不会被它截断采样，滤镜层也能真正压在最底层。 */
@@ -1320,7 +1320,7 @@ window.__ModuleLoader__.load({
         background: transparent !important;
         /* 边饰由全局统一的 GLASS_EDGE_CSS 给出，不在这里重复。 */
       }
-
+      
       /* 输入框的滤镜层：铺满卡片，压在卡片的最底层。
          它与弹窗在 DOM 上互不包含，因此两者的 backdrop-filter 互不截断。
          z-index:-1 让它落在卡片背景之下、内容之上——滤镜采样的是它背后
@@ -1334,7 +1334,7 @@ window.__ModuleLoader__.load({
         pointer-events: none;
         background: color-mix(in srgb, var(--dsw-specific-input-major) 22%, transparent) !important;
       }
-
+      
       /* 用户回复的气泡：液态玻璃 + 半透明底。
          宿主底色是 --dsw-specific-bubble（实色），不掏空的话 backdrop-filter
          采样不到背后的内容，玻璃会退化成一块平色。
@@ -1342,12 +1342,12 @@ window.__ModuleLoader__.load({
       [data-message-bubble][data-shino-glass] {
         background: color-mix(in srgb, var(--dsw-specific-bubble) 38%, transparent) !important;
       }
-
+      
       /* 夜间模式：底色本就深，比例提高以保证正文可读。 */
       body[data-ds-dark-theme] [data-message-bubble][data-shino-glass] {
         background: color-mix(in srgb, var(--dsw-specific-bubble) 58%, transparent) !important;
       }
-
+      
       /* 产物卡片（present 工具的文件卡片）：60px 高的小方块，底色是
          --dsw-alias-card-fill（经 .root 的 --deliverable-fill 间接引用）。
          fill 与 hover 一起换成半透明，否则鼠标移上去会盖回实色、玻璃突然消失。 */
@@ -1355,16 +1355,16 @@ window.__ModuleLoader__.load({
         background: color-mix(in srgb, var(--dsw-alias-card-fill) 26%, transparent) !important;
         transition: background-color 120ms ease;
       }
-
+      
       [data-presented-file][data-shino-glass]:hover {
         background: color-mix(in srgb, var(--dsw-alias-card-fill-hover) 38%, transparent) !important;
       }
-
+      
       /* 卡片里的文件类型图标块，同属玻璃表面，一起掏空以保持层次一致。 */
       [data-presented-file][data-shino-glass] [class*="fileIcon"] {
         background: color-mix(in srgb, var(--dsw-alias-card-tile-fill) 30%, transparent) !important;
       }
-
+      
       /* 产物改动展示卡（[data-changed-files]，宿主 ChangedFiles.tsx）。
          卡片底是 --dsw-alias-bg-layer-1，头部是 --changes-fill
          （即 --dsw-alias-card-fill），都铺成实色。
@@ -1373,22 +1373,22 @@ window.__ModuleLoader__.load({
       [data-changed-files][data-shino-glass] {
         background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 34%, transparent) !important;
       }
-
+      
       [data-changed-files][data-shino-glass] > [class*="header"] {
         background: color-mix(in srgb, var(--dsw-alias-card-fill) 70%, transparent) !important;
         transition: background-color 120ms ease;
       }
-
+      
       [data-changed-files][data-shino-glass] > [class*="header"]:hover,
       [data-changed-files][data-shino-glass] > [class*="header"]:focus-visible {
         background: color-mix(in srgb, var(--dsw-alias-card-fill-hover) 78%, transparent) !important;
       }
-
+      
       /* 头部里的文件类型图标块同样稍微透明。 */
       [data-changed-files][data-shino-glass] [class*="tile"] {
         background: color-mix(in srgb, var(--dsw-alias-card-tile-fill) 60%, transparent) !important;
       }
-
+      
       /* 回复里的代码块：容器底色是 --dsl-code-block-background
          （= --dsw-alias-markdown-code-block），banner 另外铺了一层
          --dsw-alias-bg-base 实色。两处都要掏空，否则玻璃顶部会被一条
@@ -1396,17 +1396,17 @@ window.__ModuleLoader__.load({
       [data-shino-code-block][data-shino-glass] {
         background: color-mix(in srgb, var(--dsw-alias-markdown-code-block) 40%, transparent) !important;
       }
-
+      
       [data-shino-code-block][data-shino-glass] [data-code-block-banner] {
         background: color-mix(in srgb, var(--dsw-alias-markdown-code-block-banner) 42%, transparent) !important;
       }
-
+      
       /* banner 的 sticky 包裹层也是实色（--dsw-alias-bg-base），一并掏空，
          否则玻璃顶部会被一条实色横条盖住。真实结构：容器 > bannerWrap > banner。 */
       [data-shino-code-block][data-shino-glass] > div:has(> [data-code-block-banner]) {
         background: transparent !important;
       }
-
+      
       /* 无语言代码块（纯文本 pre）：宿主用 .md-code-block 容器包一层，
          里面是直接铺在 --dsl-code-block-background 上的 <pre>。
          这类代码块没有 data-code-block-banner，不会被 CODE_BLOCK 选择器命中，
@@ -1416,67 +1416,67 @@ window.__ModuleLoader__.load({
       [class*="block_"] :where(pre):not(:has([data-code-block-banner])) {
         background: transparent !important;
       }
-
+      
       .md-code-block {
         background: color-mix(in srgb, var(--dsw-alias-markdown-code-block) 40%, transparent) !important;
       }
-
+      
       /* 模型提问的卡片：宿主底色是 --dsw-specific-input-major（实色），
          掏空后交给玻璃。 */
       [data-question-key][data-shino-glass] {
         background: color-mix(in srgb, var(--dsw-specific-input-major) 24%, transparent) !important;
       }
-
+      
       /* 上下文里用户回答提问的气泡：底色同用户气泡（--dsw-specific-bubble）。 */
       [data-question-reply] > div > div[data-shino-glass] {
         background: color-mix(in srgb, var(--dsw-specific-bubble) 38%, transparent) !important;
       }
-
+      
       body[data-ds-dark-theme] [data-question-reply] > div > div[data-shino-glass] {
         background: color-mix(in srgb, var(--dsw-specific-bubble) 58%, transparent) !important;
       }
-
+      
       /* 通用模态框：设置面板、确认框等。面板底色是实色，
          overlay 遮罩保持原样（它需要压暗后面）。 */[role="dialog"][aria-modal="true"][data-shino-glass] {
         background: color-mix(in srgb, var(--dsw-alias-bg-overlay) 34%, transparent) !important;
       }
-
+      
       /* 夜间模式：菜单与模态框的遮罩同样调浅。
          暗色底本身就重，再压一层会把背景压成纯黑，玻璃失去可折射的内容。 */
       body[data-ds-dark-theme] [role="dialog"][aria-modal="true"][data-shino-glass] {
         background: color-mix(in srgb, var(--dsw-alias-bg-overlay) 24%, transparent) !important;
       }
-
+      
       /* 右侧栏引导页的入口按钮：宿主底色是 --dsw-alias-bg-layer-1，
          hover 换成 --dsw-alias-interactive-bg-hover（不处理的话鼠标一上去玻璃就没了）。 */
       [data-sidebar-right-guide-entry][data-shino-glass],
       [data-shino-guide-entry][data-shino-glass] {
         background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 30%, transparent) !important;
       }
-
+      
       [data-sidebar-right-guide-entry][data-shino-glass]:hover,
       [data-shino-guide-entry][data-shino-glass]:hover {
         background: color-mix(in srgb, var(--dsw-alias-interactive-bg-hover) 60%, transparent) !important;
       }
-
+      
       /* 侧边栏「新会话」按钮：原本是透明图标按钮，玻璃化后给它一层
          很薄的底色，让折射有可依附的表面，同时保持低调。 */
       [data-shino-new-session][data-shino-glass] {
         background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 26%, transparent) !important;
       }
-
+      
       [data-shino-new-session][data-shino-glass]:hover {
         background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 40%, transparent) !important;
       }
-
+      
       /* 中间列：玻璃的 backdrop-filter 采样的是「它背后已经画好的像素」。
          这一层若还是实底，折射出来的只是它自己的颜色，玻璃就退化成一块平色。
-
+      
          必须覆盖所有主面板页面，不能只覆盖会话页：
          · 会话页  —— ConversationRoot 的根（带 data-phase 与 data-conversation-content）
          · 插件页 / 自动化任务页 / 设置页等 —— 直接挂在 AppFrame 的 centerCol 里，
            底色来自 centerCol 与 frame 的 --dsw-alias-bg-base。
-
+      
          AppFrame 的 CSS Modules 类名在 web bundle 与 native 构建里格式不同：
          web 是 下划线 centerCol 下划线 哈希 下划线 序号，
          native 是 哈希 下划线 centerCol。
@@ -1487,7 +1487,7 @@ window.__ModuleLoader__.load({
       [class$="centerCol"] {
         background: color-mix(in srgb, var(--dsw-alias-bg-base) 58%, transparent) !important;
       }
-
+      
       /* 夜间模式：遮罩调浅。
          暗色下的 --dsw-alias-bg-base 本身就很深，58% 的不透明度会把壁纸
          压得几乎看不见，玻璃也就失去了可折射的内容。这里降到 38%，
@@ -1497,7 +1497,7 @@ window.__ModuleLoader__.load({
       body[data-ds-dark-theme] [class$="centerCol"] {
         background: color-mix(in srgb, var(--dsw-alias-bg-base) 38%, transparent) !important;
       }
-
+      
       /* frame 自己也铺了一层 --dsw-alias-bg-base，不掏空的话中间列的薄纱
          下面仍是实底，等于没改。标题带/侧边栏的透明由 token override 负责。
          :has(> centerCol) 把范围锁在 AppFrame 的根网格上，避免命中同名的其它
@@ -1505,7 +1505,7 @@ window.__ModuleLoader__.load({
       [class*="frame"]:has(> [class*="centerCol"]) {
         background: transparent !important;
       }
-
+      
       @media (prefers-reduced-transparency: reduce) {
         /* 系统要求降低透明时退回可读的实底，宁可没有玻璃。 */
         [data-composer-card][data-shino-card] {
@@ -1529,7 +1529,7 @@ window.__ModuleLoader__.load({
         }
       }
       `;
-
+      
       /* ---------------------------------------------------------------- 菜单玻璃 */
       //
       // 宿主菜单的 DOM（index bundle 里的 Ed 组件）：
@@ -1554,10 +1554,10 @@ window.__ModuleLoader__.load({
       //
       // 表面没有 data-menu-phase 的菜单（普通下拉，只有右键菜单才带相位）：
       // 元素插入即播放一次入场动画，用 :not([data-menu-phase]) 兜住。
-
+      
       // 入场：有相位的右键菜单，以及插入即播的普通下拉。
       const MENU_ENTER = '[data-menu-material][data-menu-phase="enter"], [data-menu-material]:not([data-menu-phase])';
-
+      
       const MENU_GLASS_CSS = `
       /* 菜单材质层：掏空宿主的实色底。
          边饰（border / outline / box-shadow）画在**表面**上——材质层是 inset:0
@@ -1566,46 +1566,46 @@ window.__ModuleLoader__.load({
         box-sizing: border-box;
         background: color-mix(in srgb, var(--dsw-specific-menu) 26%, transparent) !important;
       }
-
+      
       /* 右键菜单：玻璃直接挂在 surface 自身（带 data-shino-menu-surface）。
          材质层的滤镜和底色都不要再叠一层——surface 自己是 backdrop root，
          缩放动画挂在它身上不会截断它自己的滤镜。 */
       [data-context-menu][data-shino-menu-surface] {
         background: color-mix(in srgb, var(--dsw-specific-menu) 26%, transparent) !important;
       }
-
+      
       [data-context-menu][data-shino-menu-surface] > [aria-hidden="true"]:first-child {
         background: transparent !important;
       }
-
+      
       /* 夜间模式：菜单材质层调浅，暗色底上少压一层，背景图才能透上来。 */
       body[data-ds-dark-theme] [data-menu-material]:not([data-context-menu]) > [aria-hidden="true"]:first-child {
         background: color-mix(in srgb, var(--dsw-specific-menu) 18%, transparent) !important;
       }
-
+      
       body[data-ds-dark-theme] [data-context-menu][data-shino-menu-surface] {
         background: color-mix(in srgb, var(--dsw-specific-menu) 18%, transparent) !important;
       }
-
+      
       /* 玻璃层永不淡出：这一条是整段动画里最要紧的一行。
          context-menu 的玻璃在 surface 自身，材质层不参与。 */
       [data-menu-material]:not([data-context-menu])[data-menu-phase] > [aria-hidden="true"]:first-child {
         animation: none !important;
         opacity: 1 !important;
       }
-
+      
       /* 输入触发器菜单（/ 与 @ 的候选菜单、以及工具栏 launcher 弹出的那个）
          渲染在 composer card 内部（宿主 MenuView 用 closest('[data-composer-card]')
          定位自己）。
-
+      
          composer card 的滤镜被移到了它自己的 [data-shino-card-filter] 子层上
          （规则在 GLASS_CSS 里），该层与弹窗在 DOM 上互不包含，因此两者的
          backdrop-filter 互不截断——弹窗的折射正常，输入框的玻璃也还在。 */
-
+      
       /* 弹入 / 弹出：从中间缩放，挂在表面（玻璃层与内容层的共同父级）上。
          不用 fill-mode: both —— 动画结束后残留的 transform 会让表面成为
          定位包含块，子元素的 anchor() 定位与 sticky 行为都会跟着变。
-
+      
          关于 transform 与滤镜的关系：
          玻璃已经挂在 surface 自身，元素自身的 transform 不截断它自己的
          backdrop-filter；缩放与错位都是 surface 上的动画，菜单项又是玻璃层
@@ -1615,26 +1615,26 @@ window.__ModuleLoader__.load({
         transform-origin: center;
         animation: shino-menu-pop-in 0.32s cubic-bezier(0.2, 1.25, 0.35, 1);
       }
-
+      
       [data-menu-material][data-menu-phase="dismiss"] {
         transform-origin: center;
         animation: shino-menu-pop-out 0.14s ease-in;
       }
-
+      
       @keyframes shino-menu-pop-in {
         from { transform: scale(0.92); }
         to { transform: scale(1); }
       }
-
+      
       @keyframes shino-menu-pop-out {
         from { transform: scale(1); }
         to { transform: scale(0.94); }
       }
-
+      
       /* 逐项错位：translateX(-10px) → 0 叠加淡入。
          时长 0.3s，相邻项重叠 0.2s → 步进 = 0.3 − 0.2 = 0.1s。
          序号由 paintGlass() 写入 --shino-menu-index。
-
+      
          关于 opacity 与父级滤镜的关系（这里是需求点名要说明的地方）：
          backdrop-filter 的采样只受「它自己的祖先链」影响——祖先上出现
          opacity<1 / filter / mask 才会切断采样。菜单项是玻璃层的**侄辈**
@@ -1642,12 +1642,12 @@ window.__ModuleLoader__.load({
          opacity 不会让父级的液态玻璃失效。把 opacity 加上去的是表面
          （玻璃层的父级）或玻璃层自身时才会坏，那两处已经分别被
          「不设 fill-mode」和「钉死 opacity: 1」挡掉了。
-
+      
          用 backwards 而不是 both：backwards 在 delay 期间保持起始帧，
          避免先闪一下最终位置；而 forwards 会把 opacity: 1 / translateX(0)
          永久钉在元素上（动画级优先级会盖住宿主给禁用项的低透明度），
          结束帧本来就等于天然值，交还 CSS 更安全。
-
+      
           父级缩放 (0.32s) 从这里同时开始：玻璃挂在 surface 自身，
           元素自身的 transform 不截断它自己的 backdrop-filter，
           所以两段动画同步进行、互不干扰——表面一边缩放，内容一边滑入。 */
@@ -1655,7 +1655,7 @@ window.__ModuleLoader__.load({
         animation: shino-menu-item-in 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
         animation-delay: calc(var(--shino-menu-index, 0) * 0.1s);
       }
-
+      
       @keyframes shino-menu-item-in {
         from {
           transform: translateX(-10px);
@@ -1666,24 +1666,24 @@ window.__ModuleLoader__.load({
           opacity: 1;
         }
       }
-
+      
       /* 收起时不再逐项重播，避免和表面的缩放打架。 */
       [data-menu-material][data-menu-phase="dismiss"] [role="menuitem"] {
         animation: none !important;
       }
-
+      
       /* 普通下拉（没有 data-menu-phase）宿主不给淡入淡出，这里补上。
          只作用于内容层，玻璃层仍然钉死 opacity: 1 —— 淡出会让
          backdrop-filter 失效，玻璃在动画期间会退成平色。 */
       [data-menu-material]:not([data-menu-phase]) > :nth-child(n + 2) {
         animation: shino-menu-fade-in 0.24s ease-out;
       }
-
+      
       @keyframes shino-menu-fade-in {
         from { opacity: 0; }
         to { opacity: 1; }
       }
-
+      
       @media (prefers-reduced-motion: reduce) {
         ${MENU_ENTER},
         [data-menu-material][data-menu-phase="dismiss"],
@@ -1691,21 +1691,21 @@ window.__ModuleLoader__.load({
           animation: none !important;
         }
       }
-
+      
       @media (prefers-reduced-transparency: reduce) {
         [data-menu-material] > [aria-hidden="true"]:first-child {
           background: var(--dsw-specific-menu) !important;
         }
       }
       `;
-
+      
       /* ------------------------------------------------ 把玻璃挂到宿主元素上 */
-
+      
       // 菜单的玻璃层：宿主在 [data-menu-material] 里放了一个 aria-hidden 的
       // 绝对定位层（inset:0, z-index:-1），原本只挂普通 blur。它尺寸可测、
       // 又正好铺满菜单表面，因此交给 makeGlass 换成带折射的液态玻璃。
       const MENU_GLASS_LAYER = '[data-menu-material]:not([data-context-menu]) > [aria-hidden="true"]:first-child';
-
+      
       // 右键菜单（data-context-menu）专用：宿主把 data-context-menu 与
       // data-menu-material 挂在**同一个 surface 元素**上。
       //
@@ -1715,12 +1715,12 @@ window.__ModuleLoader__.load({
       // 缩放期间玻璃就失效；玻璃挂在 surface 自身，缩放全程折射都在。
       // 因此这类菜单直接玻璃化 surface，并把材质层的滤镜关掉。
       const CONTEXT_MENU_SURFACE = '[data-context-menu][data-menu-material]';
-
+      
       /** 判断一个菜单目标是否应该把玻璃挂到 surface 本身。 */
       function isContextMenuSurface (el) {
         return el.hasAttribute('data-context-menu')
       }
-
+      
       // 代码块：宿主只给 banner 打了 data-code-block-banner，外层是哈希类名。
       //
       // :has() 是向上匹配的，所以这条选择器会同时命中：代码块容器本身、
@@ -1731,7 +1731,7 @@ window.__ModuleLoader__.load({
       // 解决办法放在运行时：取候选里**最深的**那些（内部不再包含其它候选），
       // 它们才是代码块容器本身。祖先（消息节点、流容器）自然被排除。
       const CODE_BLOCK = 'div:has(> div > [data-code-block-banner])';
-
+      
       /**
        * 从候选里挑出最深的元素（其内部不再包含其它候选）。
        * :has() 向上匹配会一并带出祖先，这里把它们剔掉。
@@ -1742,7 +1742,7 @@ window.__ModuleLoader__.load({
         const list = [...candidates]
         return list.filter(el => !list.some(other => other !== el && el.contains(other)))
       }
-
+      
       // 右侧栏引导页（右侧「开始」入口页）的入口按钮。
       //
       // 关键：必须用 [data-sidebar-right-guide] 这个容器属性把范围限定在右侧栏内。
@@ -1758,7 +1758,7 @@ window.__ModuleLoader__.load({
         // 「更多」锚点与 entry 同基类，但类名以 _moreAnchor 收尾（class$="_entry" 匹配不到）。
         '[data-sidebar-right-guide] button[class*="_entry "][class$="_moreAnchor"]',
       ].join(', ');
-
+      
       // 会话头部：宿主的 ConversationHeader.tsx 渲染的 <header>。
       //
       // 不能只用 header[data-window-drag="true"] —— 插件页的 pageHead/moreHead、
@@ -1768,27 +1768,27 @@ window.__ModuleLoader__.load({
       // [data-conversation-header-leading]（宿主只有 ConversationHeader 渲染它）。
       // 用 :has(> ...) 把范围锁死，哈希类 an3WzG_header 一概不依赖。
       const CONVERSATION_HEADER = 'header[data-window-drag]:has(> [data-conversation-header-leading])';
-
+      
       // 通用模态框面板。宿主用 [role="dialog"][aria-modal="true"] 统一标记
       // 设置面板、确认框等；菜单是 role="menu"，不会误伤。
       const MODAL_PANEL = '[role="dialog"][aria-modal="true"]';
-
+      
       // 侧边栏「新会话」按钮。
       // 注意：不能用 aria-label 定位 —— 宿主里品牌标识按钮的 aria-label 同样是
       // t('session.new.label')，与「新会话」按钮共用同一句文案，用 aria-label
       // 会把 wtg9ga_brand / wtg9ga_wide 那圈品牌区一并命中（曾因此误加玻璃）。
       // 这里改用侧边栏自己的模块类名：wtg9ga_newSession 只出现在这一个按钮上。
       const NEW_SESSION_BUTTON = 'button[class*="_newSession"]';
-
+      
       // 模型向用户提问的卡片（QuestionComposer 的 frame）。
       const QUESTION_CARD = '[data-question-key]';
-
+      
       // 上下文里用户回答模型提问的那张卡（QuestionReplyView 的 row）。
       // 真正要玻璃化的是 row 里那张气泡：row > bubbleWidth > UserMessageBubble。
       // UserMessageBubble 自己没有 data 属性（只有 _bubble_<hash> 这类哈希类名），
       // 所以按 DOM 位置定位；row 的第二层是操作按钮行（时间、复制），不能要。
       const REPLY_BUBBLE = '[data-question-reply] > div > div';
-
+      
       // 要玻璃化的宿主元素。都用宿主自己发布的稳定属性选择，不依赖哈希类名。
       // mark 是给无法直接用属性定位的目标补的标记，CSS 侧据此写透明化规则。
       const GLASS_TARGETS = [
@@ -1830,7 +1830,7 @@ window.__ModuleLoader__.load({
         // 侧边栏的「新会话」按钮。
         { selector: NEW_SESSION_BUTTON, light: true, mark: 'data-shino-new-session' },
       ];
-
+      
       /**
        * 给菜单项写入错位动画的序号。宿主每次重新渲染都会重建这些节点，
        * 所以每次扫描都重算一遍；序号只影响 CSS 的 animation-delay。
@@ -1842,7 +1842,7 @@ window.__ModuleLoader__.load({
           items[i].style.setProperty('--shino-menu-index', String(i));
         }
       }
-
+      
       /**
        * 给匹配到的元素打标记并挂玻璃。幂等：已挂过的元素由 liquidglass 内部
        * 的 WeakMap 去重，这里只负责补属性。
@@ -1850,16 +1850,16 @@ window.__ModuleLoader__.load({
        */
       function paintGlass(root) {
         const scope = root && typeof root.querySelectorAll === 'function' ? root : document;
-
+      
         // 维持侧边栏 token 透明：presenter 在主题初始化/切换时会重写该变量，
         // 每轮扫描顺手钉回透明 important。
         keepChromeTransparent();
-
+      
         // 菜单：与 GPU 偏好无关地打序号，玻璃层由宿主自己负责。
         for (const surface of scope.querySelectorAll('[data-menu-material]')) {
           indexMenuItems(surface);
         }
-
+      
         // 清理早期版本误加在品牌区上的玻璃。
         // 上一版用 aria-label 找「新会话」，结果把同样带 session.new.label 的
         // 品牌标识按钮（wtg9ga_brand / wtg9ga_wide）也玻璃化了。
@@ -1869,9 +1869,9 @@ window.__ModuleLoader__.load({
           if (cls.includes('_newSession')) continue;
           stripGlass(el);
         }
-
+      
         if (LG.LIQUID_GLASS_BLOCKED_BY_GPU_PREFERENCE) return;
-
+      
         for (const target of GLASS_TARGETS) {
           const found = scope.querySelectorAll(target.selector);
           // deepest 目标只取候选里最深的那些：:has() 向上匹配会带出祖先，
@@ -1898,7 +1898,7 @@ window.__ModuleLoader__.load({
             // 目标用的是语义属性时（如 :has() 反向定位的代码块），
             // 补一个自己的标记，CSS 才能精确地只改这一层。
             if (target.mark !== undefined) el.setAttribute(target.mark, '');
-
+      
             // filterLayer 目标：滤镜不挂在目标自身，而是插一个专用子层。
             //
             // 为什么要这样：CSS 规范里，带 backdrop-filter 的元素**本身就是**
@@ -1934,7 +1934,7 @@ window.__ModuleLoader__.load({
             } else {
               el.setAttribute('data-shino-glass', '')
             }
-
+      
             glassHost.setAttribute('data-glass', '')
             // light 只给父层，滤镜层不参与光晕（它铺满卡片、几乎覆盖整个表面，
             // 光晕落在它上面会被卡片自身的半透明底吃掉）。
@@ -1953,10 +1953,10 @@ window.__ModuleLoader__.load({
             }
           }
         }
-
+      
         protectMenuGlass();
       }
-
+      
       /**
        * 在目标元素里插入一个专用的滤镜层，并把它作为第一个子元素。
        *
@@ -1969,13 +1969,13 @@ window.__ModuleLoader__.load({
       function insertFilterLayer (host) {
         const existing = host.querySelector(':scope > [data-shino-card-filter]')
         if (existing !== null) return existing
-
+      
         const layer = document.createElement('div')
         layer.setAttribute('data-shino-card-filter', '')
         host.insertBefore(layer, host.firstChild)
         return layer
       }
-
+      
       /**
        * 摘掉一个元素上的全部玻璃痕迹（标记、inline 滤镜、滤镜子层）。
        * @param el - 要清理的元素。
@@ -2081,9 +2081,9 @@ window.__ModuleLoader__.load({
           }
         }
       }
-
+      
       /* ------------------------------------------------------------ 文案 */
-
+      
       const NS = 'dsh-sea-explore';
       const DICT = {
         zh: {
@@ -2103,7 +2103,7 @@ window.__ModuleLoader__.load({
           'title': 'dsh-sea-explore: session status',
         },
       };
-
+      
       /** 兜底翻译：locale 席位缺席时也能显示，不让整条崩溃。 */
       function fallback(lang, key, params) {
         const table = DICT[lang] ?? DICT.en;
@@ -2112,18 +2112,18 @@ window.__ModuleLoader__.load({
         return template.replace(/\{(\w+)\}/g, (match, name) =>
           name in params ? String(params[name]) : match);
       }
-
+      
       /* ------------------------------------------------------ 透明外壳 token */
-
+      
       // 一个 token 覆盖四处表面：AppFrame 的 .frame（Windows 标题带）与
       // .sidebarCol，以及 SidebarRoot 的 .root。值为 transparent，
       // 所以深浅两套写成一样也不会失真。
       const CHROME_BACKGROUND_OVERRIDES = {
         '--dsw-specific-sidebar-fill': { light: 'transparent', dark: 'transparent' },
       };
-
+      
       /* ---------------------------------------------------------------- 状态条 */
-
+      
       // 行高与最小高度取自宿主的 secondary 内容字号变量，
       // 这样用户调大字号时状态条与相邻的 ContextMeter 一起放大。
       const STRIP_CSS = `
@@ -2180,7 +2180,7 @@ window.__ModuleLoader__.load({
         .shino-strip__dot[data-state='running'] { animation: none; }
       }
       `;
-
+      
       /** 组件内联样式表：随组件一起卸载，不留全局残留。 */
       function StyleTags() {
         const React = require('react');
@@ -2190,13 +2190,13 @@ window.__ModuleLoader__.load({
           h('style', { 'data-dsh-sea-explore': 'menu' }, MENU_GLASS_CSS),
           h('style', { 'data-dsh-sea-explore': 'strip' }, STRIP_CSS));
       }
-
+      
       function ShinoStrip(props) {
         const React = require('react');
         const h = React.createElement;
         const { sessionId, useSession, useSessionStatus, useInput, t } = props;
         const tr = (typeof t === 'function') ? t : (key, params) => fallback('en', key, params);
-
+      
         // 首帧 store 可能尚未就绪，所有读取都按「缺省即无事发生」处理，
         // 避免一次瞬时 undefined 让整个槽位条目被弃用。
         const running = useSession(s => s?.running === true);
@@ -2205,7 +2205,7 @@ window.__ModuleLoader__.load({
         const pending = status?.pendingInteraction;
         const unread = status?.completionUnread === true;
         const draftLength = useInput(s => (s !== undefined && typeof s.draft === 'string' ? s.draft.length : 0));
-
+      
         // 优先级：等待用户确认 > 生成中 > 有新结果 > 空闲。
         const state = pending !== undefined
           ? 'waiting'
@@ -2214,10 +2214,10 @@ window.__ModuleLoader__.load({
             : unread
               ? 'done'
               : 'idle';
-
+      
         const label = tr(`state.${state}`, undefined);
         const showDraft = draftLength > 0 && state !== 'running';
-
+      
         // 只有状态文字进入 live region：草稿字数随每次按键变化。
         const children = [
           h('span', { className: 'shino-strip__dot', 'data-state': state, 'aria-hidden': true }),
@@ -2233,14 +2233,14 @@ window.__ModuleLoader__.load({
           children.push(h('span', { className: 'shino-strip__sep', 'aria-hidden': true }));
           children.push(h('span', { className: 'shino-strip__meta' }, tr('meta.draft', { n: draftLength })));
         }
-
+      
         return h('div', {
           className: 'shino-strip',
           'data-state': state,
           title: tr('title', undefined),
         }, ...children);
       }
-
+      
       /* ------------------------------------------- 侧边栏：导航岛 + 内容区布局 */
       /*
        * 宿主 SidebarRoot.tsx 的默认结构是竖向堆叠：
@@ -2262,11 +2262,11 @@ window.__ModuleLoader__.load({
        * React 每次重渲染会把节点放回原处，所以用 MutationObserver 持续维持。
        */
       const SIDEBAR_MARK = 'data-shino-sidebar-layout';
-
+      
       /* 导航状态持久化键。首页激活态与首页折叠态都跨页面/重渲染记忆。 */
       const HOME_STATE_KEY = 'dsh-sea-explore-home-active';
       const HOME_COLLAPSED_KEY = 'dsh-sea-explore-home-collapsed';
-
+      
       function readFlag(key, fallback) {
         try {
           if (typeof localStorage === 'undefined') return fallback;
@@ -2279,7 +2279,7 @@ window.__ModuleLoader__.load({
           if (typeof localStorage !== 'undefined') localStorage.setItem(key, value ? '1' : '0');
         } catch (e) { /* 隐私模式下忽略 */ }
       }
-
+      
       /**
        * 初始化首页状态：软件默认打开时必须在首页。
        * 首次加载（无 localStorage 记录）默认激活首页。
@@ -2296,27 +2296,27 @@ window.__ModuleLoader__.load({
         }
         return state === '1';
       }
-
+      
       /* 首页状态只初始化一次（首次加载默认首页）。 */
       let homeStateInitialized = false;
-
+      
       /* 折叠记忆：只在首页激活状态「变化」的瞬间应用折叠策略，避免与用户操作打架。
          记住首页模式下用户上次选择的折叠状态；非首页强制折叠。 */
       let lastHomeActiveForCollapse = null;
-
+      
       function currentCollapsed() {
         if (typeof document === 'undefined') return false;
         const frame = document.querySelector('[data-sidebar-collapsed]');
         // 属性存在即折叠；不存在即展开
         return frame !== null && frame.hasAttribute('data-sidebar-collapsed');
       }
-
+      
       function clickSidebarToggle() {
         if (typeof document === 'undefined') return;
         const toggle = document.querySelector('[data-sidebar-toggle]');
         if (toggle !== null && typeof toggle.click === 'function') toggle.click();
       }
-
+      
       function syncSidebarCollapse(homeActive, force = false) {
         if (!force && homeActive === lastHomeActiveForCollapse) return;
         lastHomeActiveForCollapse = homeActive;
@@ -2332,24 +2332,24 @@ window.__ModuleLoader__.load({
           if (!collapsed) clickSidebarToggle();
         }
       }
-
+      
       /** 侧边栏根：从 frame 内找（导航已迁出 sidebar，不能从按钮 closest）。 */
       function getSidebar() {
         if (typeof document === 'undefined') return null;
         return document.querySelector('[class*="frame"] [class*="wtg9ga_root"]');
       }
-
+      
       /** 导航作用域：navCol 所在的 frame（状态挂在它上面，跨 DOM 迁移稳定）。 */
       function getNavScope() {
         if (typeof document === 'undefined') return null;
         const navCol = document.querySelector('[data-shino-navcol]');
         return navCol !== null ? navCol.parentElement : null;
       }
-
+      
       function applySidebarLayout(root) {
         if (typeof document === 'undefined') return;
         const doc = root && typeof root.querySelectorAll === 'function' ? root : document;
-
+      
         // 找到 AppFrame 根：含 centerCol 子元素的 frame（跨构建稳定）。
         const frames = doc.querySelectorAll('[class*="frame"]:has(> [class*="centerCol"])');
         for (const frame of frames) {
@@ -2361,12 +2361,14 @@ window.__ModuleLoader__.load({
             navCol.className = 'mP3x-q_navCol';
             frame.insertBefore(navCol, frame.firstChild);
           }
-
-          // 不修改 frame 的 grid-template-columns —— 宿主用它表达拖拽后的列宽，
-          // 若用 !important 覆盖会压住宿主的更新，侧边栏宽度就冻住不随拖杆变化。
-          // navCol 改为绝对定位覆盖在 sidebarCol 左侧（见 CSS），不占网格列。
+      
+          // 不修改 frame 的 grid-template-columns。
+          // 导航列由 CSS 用 position:absolute 放在 frame 的 padding-left:48px 区域里，
+          // 所有 grid 列整体右移、中间列（minmax(0,1fr)）自动收缩吸收这 48px。
+          // 若这里再往 grid 前置一列，会与 padding 叠加成双倍让位 → 布局错乱；
+          // 而且用 !important 覆盖 grid 还会压住宿主的拖拽更新，宽度就冻住了。
         }
-
+      
         // 根容器：含 wtg9ga_root 类片段的元素。
         const roots = doc.querySelectorAll('[class*="wtg9ga_root"]');
         for (const sidebar of roots) {
@@ -2375,19 +2377,19 @@ window.__ModuleLoader__.load({
           const region = sidebar.querySelector('[class*="wtg9ga_regionArea"], [class*="regionArea"]');
           const panelList = sidebar.querySelector('nav[class*="wtg9ga_panelList"], nav[class*="panelList"]')
             || doc.querySelector('[data-shino-navcol] nav[class*="wtg9ga_panelList"]');
-
+      
           if (region === null || panelList === null) continue;
-
+      
           // 把 panelList 迁移到 frame 的 navCol（不再是 sidebar 的后代）。
           const navCol = doc.querySelector('[data-shino-navcol]');
           if (navCol !== null && panelList.parentElement !== navCol) {
             navCol.appendChild(panelList);
           }
-
+      
           sidebar.setAttribute(SIDEBAR_MARK, '');
           region.setAttribute(SIDEBAR_MARK, 'region');
           panelList.setAttribute(SIDEBAR_MARK, 'nav');
-
+      
           // 把品牌行与新会话行移入 regionArea（放在最前面）。
           if (logo !== null && logo.parentElement !== region) region.insertBefore(logo, region.firstChild);
           if (newsession !== null && newsession.parentElement !== region) {
@@ -2398,14 +2400,14 @@ window.__ModuleLoader__.load({
               region.insertBefore(newsession, region.firstChild);
             }
           }
-
+      
           // 插入「工作区」导航图标（home 图标），幂等。
           let workspaceBtn = panelList.querySelector('[data-shino-workspace-nav]');
           if (workspaceBtn === null) {
             workspaceBtn = createWorkspaceNavButton(doc);
             panelList.insertBefore(workspaceBtn, panelList.firstChild);
           }
-
+      
           // 首页导航状态存在 sidebar 上（data-shino-home-active）。
           // 首次加载默认激活首页（软件打开即在首页），之后尊重 localStorage。
           if (homeStateInitialized === false) {
@@ -2425,6 +2427,9 @@ window.__ModuleLoader__.load({
             for (const b of panelList.querySelectorAll('[data-shino-workspace-nav]')) {
               b.setAttribute('data-shino-workspace-active', '');
             }
+            // 在首页期间持续跟踪当前会话（用户可能在会话列表里切换），
+            // 保证离开时记住的永远是最新那个。
+            rememberCurrentSession();
           } else {
             sidebar.removeAttribute('data-shino-region-visible');
             for (const b of panelList.querySelectorAll('[data-shino-workspace-nav]')) {
@@ -2433,38 +2438,55 @@ window.__ModuleLoader__.load({
           }
         }
       }
-
+      
       /**
-       * 切回首页：恢复「当前正在进行的主会话」并显示对话面板。
-       * 只 selectPanel(null) 不够——若 session selection 已清空，对话区会停在空状态，
-       * 用户还得手动点一次会话。这里用官方 uiWorkspace.openSession(sessionId)，
-       * 它内部 selection.set + selectPanel(null) 一步到位。
-       * 找不到主会话时（纯空对话）退化为 selectPanel(null)。
+       * 当前主会话的 id（离开首页前记住，回首页时用它恢复）。
+       * 为什么需要它：切到插件页后宿主可能释放 mainView 引用，届时再按
+       * retainedBy.mainView 找不到会话，右侧就会停在空白/残留状态。
+       */
+      let rememberedSessionId = null;
+      
+      /** 读出当前主会话 id（retainedBy.mainView > 0），没找到返回 null。 */
+      function currentMainSessionId() {
+        const W = (typeof window !== 'undefined') ? window : null;
+        if (W === null) return null;
+        const sessions = W.__dshSeaExploreSessions;
+        if (sessions === undefined || sessions.list === undefined
+          || typeof sessions.list.getSnapshot !== 'function') return null;
+        try {
+          const snap = sessions.list.getSnapshot();
+          const byId = snap && snap.byId ? snap.byId : {};
+          for (const id of Object.keys(byId)) {
+            const row = byId[id];
+            if (row && row.retainedBy && (row.retainedBy.mainView ?? 0) > 0) return id;
+          }
+        } catch (e) { /* ignore */ }
+        return null;
+      }
+      
+      /** 离开首页时调用：记住当前会话，供回首页时恢复。 */
+      function rememberCurrentSession() {
+        const id = currentMainSessionId();
+        if (id !== null) rememberedSessionId = id;
+      }
+      
+      /**
+       * 切回首页：恢复「切换前那个会话」并显示对话面板。
+       *
+       * 顺序：
+       *   1. 先试 rememberedSessionId（离开首页前记住的，最可靠）；
+       *   2. 再试当前 retainedBy.mainView > 0（若宿主还保留着引用）；
+       *   3. 都没有就只切回对话面板（空对话/新会话界面）。
+       * 用官方 uiWorkspace.openSession(id)，内部是 selection.set + selectPanel(null)。
        */
       function restoreConversation() {
         const W = (typeof window !== 'undefined') ? window : null;
         if (W === null) return;
-        const sessions = W.__dshSeaExploreSessions;
         const workspace = W.__dshSeaExploreWorkspace;
         const layout = W.__dshSeaExploreLayout;
-
-        // 找当前主会话：retainedBy.mainView > 0（宿主多处用这个判据）
-        let sessionId = null;
-        if (sessions !== undefined && sessions.list !== undefined
-          && typeof sessions.list.getSnapshot === 'function') {
-          try {
-            const snap = sessions.list.getSnapshot();
-            const byId = snap && snap.byId ? snap.byId : {};
-            for (const id of Object.keys(byId)) {
-              const row = byId[id];
-              if (row && row.retainedBy && (row.retainedBy.mainView ?? 0) > 0) {
-                sessionId = id;
-                break;
-              }
-            }
-          } catch (e) { /* ignore */ }
-        }
-
+      
+        const sessionId = rememberedSessionId !== null ? rememberedSessionId : currentMainSessionId();
+      
         if (sessionId !== null && workspace !== undefined && typeof workspace.openSession === 'function') {
           try {
             workspace.openSession(sessionId);
@@ -2475,7 +2497,7 @@ window.__ModuleLoader__.load({
           try { layout.selectPanel(null); } catch (e) { /* ignore */ }
         }
       }
-
+      
       /**
        * 创建「工作区」导航按钮：home 图标 + hover 工具提示标签。
        * 样式与 panelList 里的其它 36px 图标一致（见 SIDEBAR_LAYOUT_CSS）。
@@ -2487,7 +2509,7 @@ window.__ModuleLoader__.load({
         btn.setAttribute('data-shino-workspace-nav', '');
         btn.setAttribute('aria-label', 'workspace');
         btn.className = 'shino-workspace-nav';
-
+      
         const glyph = doc.createElement('span');
         glyph.className = 'shino-workspace-glyph';
         const svg = doc.createElementNS(NS, 'svg');
@@ -2504,15 +2526,15 @@ window.__ModuleLoader__.load({
         path.setAttribute('d', 'M3 10.5 12 3l9 7.5M5.5 9.5V21h13V9.5M9.5 21v-6h5v6');
         svg.appendChild(path);
         glyph.appendChild(svg);
-
+      
         const title = doc.createElement('span');
         title.className = 'shino-workspace-title';
         title.textContent = 'workspace';
         title.setAttribute('data-shino-tooltip', '');
-
+      
         btn.appendChild(glyph);
         btn.appendChild(title);
-
+      
         btn.addEventListener('click', (event) => {
           event.stopPropagation();
           // 首页是导航按钮：激活首页、显示 regionArea。再次点击仍保持激活。
@@ -2536,7 +2558,7 @@ window.__ModuleLoader__.load({
         });
         return btn;
       }
-
+      
       /**
        * 点击委托：点击 panelList 里的宿主面板按钮（插件等）时，
        * 取消首页激活状态——首页不高亮，regionArea 收起。
@@ -2555,6 +2577,9 @@ window.__ModuleLoader__.load({
           if (hostBtn.hasAttribute('aria-haspopup')) return;
           const sidebar = getSidebar();
           if (sidebar === null) return;
+          // 离开首页前记住当前会话——回首页时用它恢复（不能等回来再找，
+          // 那时宿主可能已释放 mainView 引用，右侧会停在空白）。
+          rememberCurrentSession();
           sidebar.removeAttribute('data-shino-home-active');
           sidebar.removeAttribute('data-shino-region-visible');
           writeFlag(HOME_STATE_KEY, false);
@@ -2567,7 +2592,7 @@ window.__ModuleLoader__.load({
           // 处理完毕后再折叠，否则会被宿主的展开覆盖。
           setTimeout(() => syncSidebarCollapse(false, true), 0);
         };
-
+      
         // 首页期间用户手动点 toggle 折叠/展开 → 记住这个折叠状态。
         const onToggleClick = (event) => {
           const target = event.target;
@@ -2582,7 +2607,7 @@ window.__ModuleLoader__.load({
         if (typeof window !== 'undefined') window.__dshSeaExploreToggleMem = onToggleClick;
         document.addEventListener('click', onClick, true);
         if (typeof window !== 'undefined') window.__dshSeaExploreNavClicks = onClick;
-
+      
         // 右键导航图标 → 弹出自制菜单，收纳原本右上角的「取消固定」按钮。
         const onContextMenu = (event) => {
           const target = event.target;
@@ -2604,13 +2629,13 @@ window.__ModuleLoader__.load({
         document.addEventListener('contextmenu', onContextMenu);
         if (typeof window !== 'undefined') window.__dshSeaExploreNavContext = onContextMenu;
       }
-
+      
       /** 显示导航图标的右键菜单（收纳取消固定操作）。 */
       function showPanelContextMenu(doc, x, y, unpinBtn, label) {
         // 清掉已存在的菜单
         const old = doc.getElementById('shino-nav-menu');
         if (old !== null) old.remove();
-
+      
         const menu = doc.createElement('div');
         menu.id = 'shino-nav-menu';
         menu.setAttribute('data-shino-context-menu', '');
@@ -2620,7 +2645,7 @@ window.__ModuleLoader__.load({
           + 'color:var(--dsw-alias-label-primary);';
         menu.style.left = Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 10000) - 170) + 'px';
         menu.style.top = Math.min(y, (typeof window !== 'undefined' ? window.innerHeight : 10000) - 80) + 'px';
-
+      
         // 菜单项文字：优先用宿主 unpin 按钮的 aria-label（本地化过），
         // 否则用「取消固定 / Unpin」。
         const text = (unpinBtn !== null ? unpinBtn.getAttribute('aria-label') : null)
@@ -2644,7 +2669,7 @@ window.__ModuleLoader__.load({
         });
         menu.appendChild(item);
         (doc.body || doc.documentElement).appendChild(menu);
-
+      
         // 点击空白处关闭菜单
         const close = (e) => {
           if (e.target !== menu && !menu.contains(e.target)) {
@@ -2654,20 +2679,20 @@ window.__ModuleLoader__.load({
         };
         setTimeout(() => doc.addEventListener('pointerdown', close, true), 0);
       }
-
-
+      
+      
       /** 持续维持侧边栏布局：React 重渲染会撤销 DOM 迁移，这里兜住。 */
       function installSidebarLayoutObserver() {
         if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
         if (typeof window !== 'undefined' && window.__dshSeaExploreSidebarObserver !== undefined) return;
-
+      
         applySidebarLayout(document);
         installSidebarNavClicks();
         const observer = new MutationObserver(() => applySidebarLayout(document));
         observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
         if (typeof window !== 'undefined') window.__dshSeaExploreSidebarObserver = observer;
       }
-
+      
       /**
        * 挂玻璃的驱动组件：坐在输入框下方的槽位里，每次 commit 后用
        * useLayoutEffect 补齐新冒出来的气泡；再挂一个 MutationObserver 兜住
@@ -2676,12 +2701,12 @@ window.__ModuleLoader__.load({
       function GlassDriver() {
         const React = require('react');
         const h = React.createElement;
-
+      
         React.useLayoutEffect(() => {
           paintGlass(document);
           installGlassEffectsOnce();
           installSidebarLayoutObserver();
-
+      
           if (typeof MutationObserver === 'undefined') return undefined;
           let queued = false;
           const schedule = () => {
@@ -2698,18 +2723,21 @@ window.__ModuleLoader__.load({
             observer.disconnect();
           };
         }, []);
-
+      
         return h(StyleTags);
       }
-
+      
       /* ---------------------------------------------------------------- 注册 */
-
+      
       return {
-        inject: ['slots'],
+        // 必需依赖：slots（注册 UI）+ layout/uiWorkspace/sessions（导航与会话恢复）。
+        // 之前只声明 slots，导致 ctx.get('uiWorkspace') 拿到 undefined，
+        // 回首页时 openSession 从未被调用，右侧停在空白/残留页面。
+        inject: ['slots', 'layout', 'uiWorkspace', 'sessions'],
         apply(ctx) {
           const locale = ctx.get('locale');
           const theme = ctx.get('theme');
-
+      
           // 暴露 service 给导航按钮：
           //   · layout      → selectPanel(null) 切回对话面板
           //   · uiWorkspace → openSession(sessionId) 恢复当前会话（官方一步到位 API）
@@ -2723,11 +2751,11 @@ window.__ModuleLoader__.load({
             if (uiWorkspace !== undefined) window.__dshSeaExploreWorkspace = uiWorkspace;
             if (sessions !== undefined) window.__dshSeaExploreSessions = sessions;
           }
-
+      
           // 重载清理：清空上一轮遗留的同名 filter，避免 lg-N 冲突导致
           // 滤镜缩减/错位；并建立跨重载幂等的光效安装标记。
           resetLiquidGlassState();
-
+      
           // 侧边栏 / 顶部标题栏透明：
           //   1. CSS 已在模块 factory 执行时注入（见 injectChromeCssEarly），
           //      这是最早时机，解决「初次打开仍不透明」；这里接管它的卸载清理。
@@ -2757,14 +2785,14 @@ window.__ModuleLoader__.load({
               };
             }, 'dsh-sea-explore-chrome-css');
           }
-
+      
           if (theme !== undefined && typeof theme.overrideTokens === 'function') {
             ctx.effect(
               () => theme.overrideTokens('dsh-sea-explore-chrome', CHROME_BACKGROUND_OVERRIDES),
               'dsh-sea-explore-chrome-transparent',
             );
           }
-
+      
           // 一次注册两种语言；重复注册（热重载、重复挂载）时会抛重复错误，
           // 此时保留已有字典即可，不影响渲染。
           if (locale !== undefined && typeof locale.register === 'function') {
@@ -2774,7 +2802,7 @@ window.__ModuleLoader__.load({
               /* 已有同 ns/locale 的字典，继续。 */
             }
           }
-
+      
           // 玻璃驱动挂在 shell.overlay：root 作用域、全框架常驻。
           // 不能挂在 conversation.composer.dock 上 —— 那是 session 作用域，
           // 切到新会话 / 插件页 / 自动化任务页时会话槽位整体卸载，
@@ -2787,7 +2815,7 @@ window.__ModuleLoader__.load({
             const React = require('react');
             return React.createElement(GlassDriver);
           })), 'dsh-sea-explore-glass-driver');
-
+      
           // 会话状态条仍然留在输入框下方（会话槽位）。
           // 注册时声明命名空间，宿主把 `t` 席位合成到 props 上，
           // 语言切换时随 outlet 一起重绘，不用自己订阅 locale/change。
