@@ -16,6 +16,19 @@ const checks = {
   'presented not stripped': !s.includes("'[data-presented-file][data-shino-glass]'"),
   'stripGlass helper exists': s.includes('function stripGlass(el)'),
 
+  // 会话头部液态玻璃浮岛：relative 文档流 / 800px / 四周 10px margin / 20px 圆角
+  'header IS a glass target': s.includes('{ selector: CONVERSATION_HEADER, light: true }'),
+  'header selector uses leading child': s.includes("header[data-window-drag]:has(> [data-conversation-header-leading])"),
+  'header not old slot selector': !s.includes('[data-slot="conversation.header"]'),
+  'header not bare window-drag': !s.includes("'header[data-window-drag=\"true\"]'"),
+  'header stays in flow (island)': /header\[data-window-drag\][^\n]*\[data-shino-glass\] \{[\s\S]{0,200}?position: relative !important/.test(s),
+  'header not fixed': !/header\[data-window-drag\][^\n]*\[data-shino-glass\] \{[\s\S]{0,300}?position: fixed/.test(s),
+  'header centered by margin auto': /margin: 10px auto !important/.test(s),
+  'header width fills with 10px gutters': /width: calc\(100% - 20px\) !important/.test(s),
+  'header max-width 800px': /max-width: 800px !important/.test(s),
+  'header radius 20px': /border-radius: 20px !important/.test(s),
+  'header children clipped to radius': /\[data-shino-glass\] > \* \{[\s\S]{0,80}?border-radius: inherit/.test(s),
+
   // 聊天流区域防护：排除「包含整个流的大容器」，流内元素（气泡、代码块）保留
   'chat flow ancestor guard': /el\.querySelector\(flowSel\)/.test(s)
     && /const flowSel = '\[data-slot="conversation\.chat\.flow"\]/.test(s),

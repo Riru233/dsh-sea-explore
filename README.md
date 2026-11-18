@@ -4,6 +4,33 @@ A DeepSeek Harness web-UI bundle with three parts: liquid glass on the chat
 bubbles and the composer input, a transparent shell (sidebar and the Windows
 title bar), and one low-key session status line under the composer.
 
+## Reload (HMR) safety
+
+A fresh load is clean, but reloading the bundle inside the app — or HMR — used
+to shrink/misalign the refraction and stack several light effects on one move.
+Both come from module-level state in `vendor/liquidglass.js` that survives in
+the DOM but is re-created in the new module instance:
+
+- **Filter ids.** `makeGlass()` numbers filters `lg-0`, `lg-1`, … from a
+  per-module counter. The old instance's `<filter>` nodes stay in the document,
+  so the new instance reuses the same ids. The browser resolves `url(#lg-0)` to
+  the *old* definition, whose displacement map was built for a differently
+  sized element — the glass looks cropped or offset.
+- **Effect listeners.** `installGlassJelly` / `installGlassLight` guard with a
+  module-local boolean. On reload it resets, so a second full set of
+  `pointer`/`touch` listeners is registered on `window` and several light
+  layers react to one move.
+
+`apply()` calls `resetLiquidGlassState()` first. It creates one shared
+`<defs id="filter-defs">` (which the vendor's `getDefs()` prefers), clears last
+round's `<filter>` nodes, and strips every glass marker so `paintGlass()`
+rebuilds each surface against the new defs. `installGlassEffectsOnce()` uses a
+`window`-level flag so the listeners are installed only on the first load;
+later instances reuse the still-live ones. The vendor file itself is generated
+and stays untouched. `tools/verify-reload.cjs` simulates two loads and checks
+there is one defs, no stale filters, no stale markers, and no duplicate SVG
+container.
+
 ## Source layout
 
 `client.js` is generated — do not edit it. It is assembled from two inputs by
@@ -48,11 +75,12 @@ stubbed-DOM smoke test exercises `clampLiquidGlassParam` (clamping to bounds),
 
 ## 1. Liquid glass
 
-Eleven host surfaces get glass:
+Twelve host surfaces get glass:
 
 | Surface | Selector | Host stylesheet / source |
 |---|---|---|
 | Composer input card | `[data-composer-card]` | `InputBar.tsx` |
+| Conversation header (glass island) | `header[data-window-drag]:has(> [data-conversation-header-leading])` | `ConversationHeader.tsx` |
 | User message bubble | `[data-message-bubble]` | `UserContent.tsx` |
 | Presented file card | `[data-presented-file]` | `PresentedFileCard.tsx` |
 | Changed-files card | `[data-changed-files]` | `ChangedFiles.tsx` |
@@ -88,6 +116,27 @@ Two need extra work and get a marker written by `paintGlass()`:
 selector hits its intended element and nothing else (inline `<code>` is not a
 code block; `role="menu"` is not a modal; an unrelated icon button is not the
 new-session button).
+
+### Conversation header as a glass island
+
+`header[data-window-drag]:has(> [data-conversation-header-leading])` — the
+`<header>` rendered by `ConversationHeader.tsx` — is turned into a floating
+"glass island". The leading-child clause matters: the plugin manager, account
+settings, and sidebar also render headers with `data-window-drag`, and a bare
+attribute selector glassed the plugin page's `pageHead` by mistake. Only the
+conversation header renders `[data-conversation-header-leading]`, so `:has()`
+singles it out without touching the hashed `an3WzG_header` / `V7pFBG_pageHead`
+classes. The island is:
+`position: relative` (stays in flow), width `calc(100% - 20px)` with
+`max-width: 800px`, `margin: 10px auto` (10px gutters and horizontal centering),
+and a 20px radius over a translucent `--dsw-alias-bg-layer-1` fill. The filter
+is hung on the element itself — its own `backdrop-filter` samples the page
+behind it, which is exactly what an island should refract.
+
+It is deliberately **not** `fixed`: this header is also the window drag region
+(`data-window-drag`), so taking it out of flow would misalign the drag area and
+let the content slide underneath. Staying in flow, it occupies a top band and
+content begins below the island — an island, not a pinned bar.
 
 The wiring, because neither surface belongs to this plugin:
 

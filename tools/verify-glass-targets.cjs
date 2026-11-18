@@ -6,6 +6,13 @@ const path = require('path')
 
 const dom = new JSDOM(`<!doctype html><html><body>
   <div data-composer-card id="card"></div>
+  <header data-window-drag="true" id="header">
+    <div data-conversation-header-leading></div>
+  </header>
+  <!-- 插件页 pageHead：同样带 data-window-drag，但没有 leading 子，不能玻璃化 -->
+  <header class="V7pFBG_pageHead" data-window-drag="true" id="page-head">
+    <div class="V7pFBG_pageHeading"></div>
+  </header>
   <div data-presented-file id="presented"></div>
   <div data-menu-material="translucent" id="nsurf"><div aria-hidden="true" id="nmat"></div></div>
   <div data-question-key="k1" id="question"></div>
@@ -140,6 +147,12 @@ const changedList = d.getElementById('changed-list')
 check('changed-files card has glass marker', changedCard.getAttribute('data-shino-glass') !== null)
 check('changed-files header NOT separately glassed', changedHeader.getAttribute('data-shino-glass') === null)
 check('changed-files list NOT separately glassed', changedList.getAttribute('data-shino-glass') === null)
+
+// 会话头部玻璃岛：只有 conversation header（带 leading 子）命中，pageHead 不误伤
+const header = d.getElementById('header')
+const pageHead = d.getElementById('page-head')
+check('header[data-window-drag] has glass marker', header.getAttribute('data-shino-glass') !== null)
+check('pageHead NOT glassed (no leading child)', pageHead.getAttribute('data-shino-glass') === null)
 
 // 关键回归：某个目标 makeGlass 抛错时，扫描循环不能被中断，
 // 后面的目标仍要拿到玻璃。这正是「输入框的玻璃莫名丢了」的成因。

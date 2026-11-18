@@ -822,6 +822,82 @@ window.__ModuleLoader__.load({
        * ========================================================================== */
       const LG = __ShinoLiquidGlass;
 
+      /* ------------------------- 重载（HMR / 插件重载）时的状态清理 -------------
+       * 首次加载正常、软件内重载后「滤镜缩减、光效重叠」的根因有两处，
+       * 都在 vendor/liquidglass.js 的模块级状态里：
+       *
+       *   1. filter 定义：vendor 用 uid 从 0 开始生成 lg-0、lg-1…，每次把
+       *      <filter> 追加到一个 <defs>。重载后新模块实例的 uid 又从 0 开始，
+       *      于是出现两份同名的 lg-0…；浏览器按文档顺序取先出现的旧定义，
+       *      而旧定义的位移图尺寸对应的是旧元素——表现为滤镜错位、缩减。
+       *
+       *   2. 光效监听：vendor 的 installGlassJelly / installGlassLight 用模块内的
+       *      installed 布尔去重，重载后布尔重建为 false，于是 window 上被重复
+       *      注册一整套 pointer/touch 监听——多个光效层响应同一次移动，重叠。
+       *
+       * 修复分两步，都在我们这一侧完成（vendor 是生成的，不手改）：
+       *   · 建立固定 id 的共享 <defs id="filter-defs">，让 vendor 的 getDefs()
+       *     优先复用它；每次插件加载先清空其中旧 filter，保证 id 不冲突。
+       *   · 用 window 级标记把两个 install 调用包一层，跨模块实例幂等。
+       */
+      const LG_RELOAD_NS = '__dshSeaExploreLgReload';
+
+      function resetLiquidGlassState() {
+        if (typeof document === 'undefined') return;
+
+        // 1. 复用同一个 defs 并清空旧 filter：新实例的 lg-0… 从干净状态开始。
+        let defs = document.getElementById('filter-defs');
+        if (defs === null) {
+          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          svg.setAttribute('width', '0');
+          svg.setAttribute('height', '0');
+          svg.setAttribute('aria-hidden', 'true');
+          svg.style.position = 'absolute';
+          defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+          defs.setAttribute('id', 'filter-defs');
+          svg.append(defs);
+          document.documentElement.append(svg);
+        }
+        // 只清 filter，保留 defs 节点本身——vendor 持有对它的一次引用。
+        for (const old of [...defs.querySelectorAll(':scope > filter')]) old.remove();
+
+        // 2. 上一轮玻璃化过的 DOM 元素上的标记与内联滤镜一并清掉。
+        //    否则新实例的 paintGlass 看到 data-shino-glass 已存在就跳过，
+        //    元素仍指向刚被清空的旧 filter id → 滤镜不生效/错位。
+        //    清掉后下一轮 paintGlass 会重新 makeGlass，生成与新 defs 匹配的滤镜。
+        const marks = [
+          '[data-shino-glass]', '[data-shino-card]', '[data-shino-menu-surface]',
+          '[data-shino-code-block]', '[data-shino-guide-entry]',
+          '[data-shino-new-session]', '[data-shino-card-filter]', '[data-glass]',
+        ];
+        for (const el of document.querySelectorAll(marks.join(', '))) {
+          stripGlass(el);
+        }
+
+        // 3. 光效监听跨模块实例只装一次。
+        const state = (typeof window !== 'undefined' ? window : globalThis);
+        if (state[LG_RELOAD_NS] === undefined) state[LG_RELOAD_NS] = { lightsInstalled: false };
+      }
+
+      /**
+       * 跨重载幂等地安装光效监听。
+       *
+       * vendor 内部的 installed 布尔管不到新模块实例，所以这里用 window 级标记：
+       * 只有第一次加载真正调用 install；重载后跳过——旧实例注册的监听仍然在
+       * window 上，它们操作的是带 data-glass-light / data-glass 的 DOM 元素，
+       * 与具体模块实例无关，继续工作。重复 install 才会让多层光效重叠。
+       */
+      function installGlassEffectsOnce() {
+        const state = (typeof window !== 'undefined' ? window : globalThis);
+        if (state[LG_RELOAD_NS] === undefined) {
+          state[LG_RELOAD_NS] = { lightsInstalled: false };
+        }
+        if (state[LG_RELOAD_NS].lightsInstalled === true) return;
+        LG.installGlassJelly();
+        LG.installGlassLight();
+        state[LG_RELOAD_NS].lightsInstalled = true;
+      }
+
       /* --------------------------------------------- 首帧即生效的外壳透明规则 */
       /*
        * 侧边栏与 Windows 顶部标题带的背景来自 --dsw-specific-sidebar-fill。
@@ -876,7 +952,8 @@ window.__ModuleLoader__.load({
       [data-shino-code-block][data-shino-glass],
       [data-question-key][data-shino-glass],
       [data-question-reply] > div > div[data-shino-glass],
-      [data-changed-files][data-shino-glass] {
+      [data-changed-files][data-shino-glass],
+      header[data-window-drag]:has(> [data-conversation-header-leading])[data-shino-glass] {
         border: 0 !important;
         border-top: 1px solid #fff6 !important;
         border-bottom: 1px solid #fff6 !important;
@@ -907,12 +984,45 @@ window.__ModuleLoader__.load({
       body[data-ds-dark-theme] [data-shino-code-block][data-shino-glass],
       body[data-ds-dark-theme] [data-question-key][data-shino-glass],
       body[data-ds-dark-theme] [data-question-reply] > div > div[data-shino-glass],
-      body[data-ds-dark-theme] [data-changed-files][data-shino-glass] {
+      body[data-ds-dark-theme] [data-changed-files][data-shino-glass],
+      body[data-ds-dark-theme] header[data-window-drag]:has(> [data-conversation-header-leading])[data-shino-glass] {
         box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45) !important;
       }
       `;
 
       const GLASS_CSS = GLASS_EDGE_CSS + `
+      /* 会话头部 → 液态玻璃浮岛（island）。
+         浮岛是留在文档流里的独立玻璃卡片：宽度自适应、最大 800px、水平居中、
+         四周 10px 留白、20px 圆角，视觉上悬浮在内容之上。
+
+         不把它设为 fixed —— 这个 header 同时是窗口拖拽区（data-window-drag），
+         脱离文档流会让拖拽区与下方内容错位；留在流里它自然占据顶部一段高度，
+         内容从岛下方开始，不会被遮住，这才是「浮岛」而非「贴顶悬浮条」。
+
+         宽度自适应、最大 800px：width:100% 让它铺满可用宽度，
+         max-width:800px 封顶；margin:10px auto 在超过 800px 时左右居中。
+         四周 10px 留白用 margin 实现（窄屏下 width 100% + margin 可能溢出，
+         所以用 calc 扣掉两侧 10px）。
+
+         滤镜挂在元素自身：元素自身的 backdrop-filter 采样它背后的页面内容，
+         折射出来的就是玻璃岛想要的效果。 */
+      header[data-window-drag]:has(> [data-conversation-header-leading])[data-shino-glass] {
+        position: relative !important;
+        width: calc(100% - 20px) !important;    /* 左右各留 10px */
+        max-width: 800px !important;            /* 最大宽度 800px */
+        margin: 10px auto !important;           /* 四周留白 + 水平居中 */
+        border-radius: 20px !important;
+        background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 30%, transparent) !important;
+        z-index: 40 !important;
+        box-sizing: border-box !important;
+      }
+
+      /* 浮岛圆角要裁住内部内容；宿主的实底根在岛背后，
+         这里把岛的直接子级也收进圆角，避免方形底色从圆角处露出。 */
+      header[data-window-drag]:has(> [data-conversation-header-leading])[data-shino-glass] > * {
+        border-radius: inherit;
+      }
+
       /* 输入框卡片：滤镜由它自己的滤镜层承担（见 [data-shino-card-filter]），
          这里只负责边饰。卡片自身不带 backdrop-filter，也不带背景色——
          这样渲染在卡片内部的弹窗不会被它截断采样，滤镜层也能真正压在最底层。 */
@@ -1363,6 +1473,16 @@ window.__ModuleLoader__.load({
         '[data-sidebar-right-guide] button[class*="_entry "][class$="_moreAnchor"]',
       ].join(', ');
 
+      // 会话头部：宿主的 ConversationHeader.tsx 渲染的 <header>。
+      //
+      // 不能只用 header[data-window-drag="true"] —— 插件页的 pageHead/moreHead、
+      // 设置页 header、sidebar 顶部条都带这个属性，会误伤（pageHead 被错加玻璃）。
+      //
+      // 精判据：conversation header 内部有独有的稳定属性
+      // [data-conversation-header-leading]（宿主只有 ConversationHeader 渲染它）。
+      // 用 :has(> ...) 把范围锁死，哈希类 an3WzG_header 一概不依赖。
+      const CONVERSATION_HEADER = 'header[data-window-drag]:has(> [data-conversation-header-leading])';
+
       // 通用模态框面板。宿主用 [role="dialog"][aria-modal="true"] 统一标记
       // 设置面板、确认框等；菜单是 role="menu"，不会误伤。
       const MODAL_PANEL = '[role="dialog"][aria-modal="true"]';
@@ -1392,6 +1512,8 @@ window.__ModuleLoader__.load({
         // 本身就是 backdrop root，会截断弹窗的采样；把滤镜移到与弹窗并列的
         // 兄弟子层上，两者互不包含、互不影响。
         { selector: '[data-composer-card]', light: true, filterLayer: true },
+        // 会话头部：液态玻璃岛，fixed 居中 800px。
+        { selector: CONVERSATION_HEADER, light: true },
         // 用户发送的消息气泡：只玻璃化气泡自身。
         // 它在聊天流内部、不包含整个流，所以不会被下面「包含聊天流则跳过」
         // 的判定拦下。
@@ -1840,8 +1962,7 @@ window.__ModuleLoader__.load({
 
         React.useLayoutEffect(() => {
           paintGlass(document);
-          LG.installGlassJelly();
-          LG.installGlassLight();
+          installGlassEffectsOnce();
 
           if (typeof MutationObserver === 'undefined') return undefined;
           let queued = false;
@@ -1870,6 +1991,10 @@ window.__ModuleLoader__.load({
         apply(ctx) {
           const locale = ctx.get('locale');
           const theme = ctx.get('theme');
+
+          // 重载清理：清空上一轮遗留的同名 filter，避免 lg-N 冲突导致
+          // 滤镜缩减/错位；并建立跨重载幂等的光效安装标记。
+          resetLiquidGlassState();
 
           // 侧边栏 / 顶部标题栏透明，两道保险：
           //   1. CSS 直接覆盖外壳元素背景，在 apply 阶段同步插入 <head>，

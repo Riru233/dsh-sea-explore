@@ -32,6 +32,7 @@ globalThis.document = {
   body: { hasAttribute: () => false, appendChild () {}, setAttribute () {} },
   querySelector: () => null,
   querySelectorAll: () => [],
+  getElementById: () => null,
   createElement: mkEl,
   createElementNS: (ns, t) => mkEl(t),
   addEventListener () {}, removeEventListener () {},
