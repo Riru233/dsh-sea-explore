@@ -67,10 +67,11 @@ check('panelUnpin hidden in CSS', /\[class\*="wtg9ga_panelUnpin"\] \{[\s\S]{0,60
 check('context menu handler exists', code.includes('function showPanelContextMenu(doc, x, y, unpinBtn, label)'))
 check('contextmenu delegated on document', /document\.addEventListener\('contextmenu', onContextMenu\)/.test(code))
 check('context menu invokes hidden unpin', /unpinBtn\.click\(\);/.test(code))
-check('default home on first load', code.includes('function initHomeState()')
-  && /默认打开即首页/.test(code) && /writeFlag\(HOME_STATE_KEY, true\)/.test(code))
-check('home state persisted', /writeFlag\(HOME_STATE_KEY, (true|false)\)/.test(code))
-check('home state keys defined', code.includes("'dsh-sea-explore-home-active'"))
+check('no forced home on startup', !code.includes('function initHomeState()')
+  && !code.includes('HOME_STATE_KEY') && !code.includes('homeStateInitialized'))
+check('home active only by click', /sidebar\.setAttribute\('data-shino-home-active', ''\)/.test(code)
+  && !/localStorage\.setItem\('dsh-sea-explore-home-active'/.test(code))
+check('collapse memory still persisted', code.includes("'dsh-sea-explore-home-collapsed'"))
 
 // 运行时 DOM 迁移
 const dom = new JSDOM(`<!doctype html><html><body>

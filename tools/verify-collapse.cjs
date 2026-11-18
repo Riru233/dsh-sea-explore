@@ -18,7 +18,7 @@ check('toggle click memorizes collapsed', /writeFlag\(HOME_COLLAPSED_KEY, curren
 check('restoreConversation fn exists', code.includes('function restoreConversation()'))
 check('finds mainView session', /retainedBy\.mainView \?\? 0\) > 0/.test(code))
 check('restores via uiWorkspace.openSession', /workspace\.openSession\(sessionId\)/.test(code))
-check('leaves home does not overwrite collapse memory', /不在这里覆盖折叠记忆/.test(code))
+check('non-home forces content collapse', /非首页（插件页 \/ 自动化任务页等）：强制折叠内容侧边栏/.test(code))
 check('home restore deferred until host settles', /setTimeout\(\(\) => syncSidebarCollapse\(true, true\), 0\)/.test(code))
 
 // 运行时：模拟折叠状态切换
@@ -85,19 +85,19 @@ for (const fn of effects) { try { fn() } catch (e) {} }
 check('collapsed listener installed', typeof window.__dshSeaExploreToggleMem === 'function')
 check('nav click listener installed', typeof window.__dshSeaExploreNavClicks === 'function')
 
-// 点击插件 → 强制折叠（无论当前状态）
+// 点击插件 → 强制折叠内容侧边栏
 const pluginBtn = d.getElementById('plugin')
 pluginBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
 setTimeout(() => {
-  check('non-home forces collapse', d.getElementById('frame').hasAttribute('data-sidebar-collapsed'),
+  check('non-home forces content collapse', d.getElementById('frame').hasAttribute('data-sidebar-collapsed'),
     'toggles=' + toggled)
 
-  // 手动展开（模拟首页用户展开，此时非首页激活，不记记忆）
+  // 手动展开（此时非首页，仅为验证下一次会再折叠）
   d.getElementById('toggle').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
   const wasExpanded = !d.getElementById('frame').hasAttribute('data-sidebar-collapsed')
   check('manually expanded', wasExpanded)
 
-  // 再点插件 → 应再次强制折叠
+  // 再点插件 → 再次强制折叠
   const before = toggled
   pluginBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
   setTimeout(() => {

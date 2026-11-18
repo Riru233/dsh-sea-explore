@@ -2263,9 +2263,13 @@ window.__ModuleLoader__.load({
        */
       const SIDEBAR_MARK = 'data-shino-sidebar-layout';
       
-      /* 导航状态持久化键。首页激活态与首页折叠态都跨页面/重渲染记忆。 */
-      const HOME_STATE_KEY = 'dsh-sea-explore-home-active';
+      /* 折叠记忆键（只记首页折叠状态）。 */
       const HOME_COLLAPSED_KEY = 'dsh-sea-explore-home-collapsed';
+      /* 上次所在的主面板 id（插件页 / 自动化任务页等）；空表示对话页。 */
+      const PANEL_STATE_KEY = 'dsh-sea-explore-active-panel';
+      
+      /* 面板恢复只做一次，避免与用户点击互相打断。 */
+      let homeStateRestored = false;
       
       function readFlag(key, fallback) {
         try {
@@ -2279,26 +2283,32 @@ window.__ModuleLoader__.load({
           if (typeof localStorage !== 'undefined') localStorage.setItem(key, value ? '1' : '0');
         } catch (e) { /* 隐私模式下忽略 */ }
       }
-      
-      /**
-       * 初始化首页状态：软件默认打开时必须在首页。
-       * 首次加载（无 localStorage 记录）默认激活首页。
-       * 之后尊重用户上次的选择。
-       */
-      function initHomeState() {
-        if (typeof localStorage === 'undefined') return null;
-        let state = null;
-        try { state = localStorage.getItem(HOME_STATE_KEY); } catch (e) { /* ignore */ }
-        if (state === null) {
-          // 默认打开即首页
-          writeFlag(HOME_STATE_KEY, true);
-          return true;
-        }
-        return state === '1';
+      /* 存任意字符串值（面板 id 不是布尔）。 */
+      function writeFlagKey(key, value) {
+        try {
+          if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
+        } catch (e) { /* ignore */ }
+      }
+      function readFlagKey(key) {
+        try {
+          if (typeof localStorage === 'undefined') return null;
+          return localStorage.getItem(key);
+        } catch (e) { return null; }
       }
       
-      /* 首页状态只初始化一次（首次加载默认首页）。 */
-      let homeStateInitialized = false;
+      /**
+       * 启动时恢复上次所在的主面板（插件页 / 自动化任务页等）。
+       * 宿主自己不记忆面板（stores.ts 初始 activePanelId 就是 null），
+       * 所以重启后想回到上次页面必须由本插件恢复。
+       */
+      function restoreRememberedPanel(layoutSvc) {
+        if (homeStateRestored) return;
+        homeStateRestored = true;
+        const last = readFlagKey(PANEL_STATE_KEY);
+        if (last === null || last === '') return;
+        if (layoutSvc === undefined || typeof layoutSvc.selectPanel !== 'function') return;
+        try { layoutSvc.selectPanel(last); } catch (e) { /* 面板可能已不存在，忽略 */ }
+      }
       
       /* 折叠记忆：只在首页激活状态「变化」的瞬间应用折叠策略，避免与用户操作打架。
          记住首页模式下用户上次选择的折叠状态；非首页强制折叠。 */
@@ -2326,9 +2336,9 @@ window.__ModuleLoader__.load({
           const remembered = readFlag(HOME_COLLAPSED_KEY, false);
           if (remembered !== collapsed) clickSidebarToggle();
         } else {
-          // 离开首页：强制折叠侧边栏。
-          // 不在这里覆盖折叠记忆——记忆只由首页期间用户手动 toggle 时更新
-          // （见 onToggleClick），否则会把切换过程中的瞬时状态误记为用户选择。
+          // 非首页（插件页 / 自动化任务页等）：强制折叠内容侧边栏。
+          // 折叠的是 sidebarCol（内容列），导航 navCol 是 frame 的独立列，
+          // 不受影响、始终可见——这正是「导航保留 + 内容让位」的预期。
           if (!collapsed) clickSidebarToggle();
         }
       }
@@ -2408,18 +2418,30 @@ window.__ModuleLoader__.load({
             panelList.insertBefore(workspaceBtn, panelList.firstChild);
           }
       
-          // 首页导航状态存在 sidebar 上（data-shino-home-active）。
-          // 首次加载默认激活首页（软件打开即在首页），之后尊重 localStorage。
-          if (homeStateInitialized === false) {
-            const active = initHomeState();
-            if (active && !sidebar.hasAttribute('data-shino-home-active')) {
-              sidebar.setAttribute('data-shino-home-active', '');
+          // 首页激活态以「宿主真实面板状态」为准：activePanelId === null 才是对话页。
+          // 只看 data-shino-home-active 会漏掉宿主自己切走的场景（重启恢复插件页等），
+          // 表现为导航高亮不在首页、侧边栏不显示。
+          const layoutSvc = (typeof window !== 'undefined') ? window.__dshSeaExploreLayout : undefined;
+          let hostPanel = null;
+          try {
+            if (layoutSvc !== undefined && typeof layoutSvc.getPanelInfo === 'function') {
+              hostPanel = layoutSvc.getPanelInfo().activePanelId;
             }
-            homeStateInitialized = true;
+          } catch (e) { /* ignore */ }
+          // 没有 getPanelInfo 时退回 DOM 判据：有 aria-current 的宿主面板即非首页。
+          const hostPanelActive = hostPanel !== null && hostPanel !== undefined
+            ? true
+            : panelList.querySelector('button[aria-current="page"]') !== null;
+          const homeActive = !hostPanelActive;
+      
+          // 持久化：非首页时记住面板 id，启动时恢复。
+          if (hostPanelActive && hostPanel !== null && hostPanel !== undefined) {
+            writeFlagKey(PANEL_STATE_KEY, String(hostPanel));
+          } else if (homeActive && !homeStateRestored) {
+            // 首次渲染若记忆的是某个面板而当前是首页，恢复它（只做一次）。
+            restoreRememberedPanel(layoutSvc);
           }
-          // 状态只由点击事件切换（见 installSidebarNavClicks），不读 aria-current，
-          // 避免与 React 重渲染对 aria-current 的恢复产生竞争。
-          const homeActive = sidebar.hasAttribute('data-shino-home-active');
+      
           // 页面切换瞬间应用折叠策略（首页记忆折叠、非首页强制折叠）
           syncSidebarCollapse(homeActive);
           if (homeActive) {
@@ -2537,12 +2559,13 @@ window.__ModuleLoader__.load({
       
         btn.addEventListener('click', (event) => {
           event.stopPropagation();
+          // 回首页：清掉"上次所在面板"的记忆，下次启动就停在对话页。
+          writeFlagKey(PANEL_STATE_KEY, '');
           // 首页是导航按钮：激活首页、显示 regionArea。再次点击仍保持激活。
           const sidebar = getSidebar();
           if (sidebar !== null) {
             sidebar.setAttribute('data-shino-home-active', '');
             sidebar.setAttribute('data-shino-region-visible', '');
-            writeFlag(HOME_STATE_KEY, true);
           }
           // 立即给工作区按钮打高亮标记，不等 observer（桩环境/首帧也正确）。
           for (const b of doc.querySelectorAll('[data-shino-workspace-nav]')) {
@@ -2582,7 +2605,6 @@ window.__ModuleLoader__.load({
           rememberCurrentSession();
           sidebar.removeAttribute('data-shino-home-active');
           sidebar.removeAttribute('data-shino-region-visible');
-          writeFlag(HOME_STATE_KEY, false);
           // 工作区按钮已迁到 frame 的 navCol，不在 sidebar 内，用全局查询。
           for (const b of document.querySelectorAll('[data-shino-workspace-nav]')) {
             b.removeAttribute('data-shino-workspace-active');
