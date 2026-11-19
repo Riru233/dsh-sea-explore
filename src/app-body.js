@@ -1666,17 +1666,29 @@ function applySidebarLayout(root) {
         ? sidebar.querySelector('[data-avatar-status]').closest('[data-inset]') : null);
     if (accountRoot !== null && navCol !== null) {
       accountRoot.setAttribute('data-shino-account', '');
-      // 抓取用户名：label 只在宽模式渲染，抓不到时用按钮 aria-label 兜底。
-      const labelEl = accountRoot.querySelector('[class*="label"]');
-      const name = labelEl !== null && labelEl.textContent !== null
-        ? labelEl.textContent.trim() : '';
-      if (name !== '') {
-        accountRoot.setAttribute('data-shino-user-name', name);
-      } else if (accountRoot.getAttribute('data-shino-user-name') === null) {
-        const btn = accountRoot.querySelector('button');
-        const aria = btn !== null ? btn.getAttribute('aria-label') : null;
-        if (aria !== null) accountRoot.setAttribute('data-shino-user-name', aria);
+
+      // 昵称来源优先级：
+      //   1. accountUi 快照 profile.value.name / contact（折叠时 label 不渲染，这是主来源）
+      //   2. DOM 里的账号 label（宽模式才有）
+      // 绝不用按钮的 aria-label（那是"更多/菜单"，不是昵称）。
+      let nickname = '';
+      const accountUiSvc = (typeof window !== 'undefined') ? window.__dshSeaExploreAccountUi : undefined;
+      if (accountUiSvc !== undefined && typeof accountUiSvc.getSnapshot === 'function') {
+        try {
+          const snap = accountUiSvc.getSnapshot();
+          const profile = snap !== null && snap !== undefined && snap.details !== null && snap.details !== undefined
+            ? snap.details.profile : undefined;
+          if (profile !== undefined && profile !== null && profile.status === 'ready') {
+            const value = profile.value || {};
+            nickname = (value.name || value.contact || '').trim();
+          }
+        } catch (e) { /* ignore */ }
       }
+      if (nickname === '') {
+        const labelEl = accountRoot.querySelector('[class*="_5Qcc8a_label"], [class*="label"]');
+        if (labelEl !== null && labelEl.textContent !== null) nickname = labelEl.textContent.trim();
+      }
+      if (nickname !== '') accountRoot.setAttribute('data-shino-user-name', nickname);
       // 放到 navCol 末尾，CSS 里 margin-top:auto 把它压到底部。
       if (accountRoot.parentElement !== navCol) navCol.appendChild(accountRoot);
     }
@@ -1744,6 +1756,31 @@ function applySidebarLayout(root) {
       }
     }
   }
+}
+
+/**
+ * 从 accountUi 快照读出昵称（profile.value.name ?? contact）。
+ * 账号 profile 是异步加载的，首次 apply 时可能还没 ready，
+ * 所以用定时器反复写，直到拿到昵称。
+ */
+function refreshAccountNickname() {
+  if (typeof document === 'undefined') return;
+  const acct = document.querySelector('[data-shino-account]');
+  if (acct === null) return;
+  // 已经有真实昵称就不重复写（避免覆盖成空）。
+  if ((acct.getAttribute('data-shino-user-name') || '') !== '') return;
+  const accountUi = (typeof window !== 'undefined') ? window.__dshSeaExploreAccountUi : undefined;
+  if (accountUi === undefined || typeof accountUi.getSnapshot !== 'function') return;
+  try {
+    const snap = accountUi.getSnapshot();
+    const details = snap !== null && snap !== undefined ? snap.details : undefined;
+    const profile = details !== null && details !== undefined ? details.profile : undefined;
+    if (profile !== undefined && profile !== null && profile.status === 'ready') {
+      const value = profile.value || {};
+      const nickname = (value.name || value.contact || '').trim();
+      if (nickname !== '') acct.setAttribute('data-shino-user-name', nickname);
+    }
+  } catch (e) { /* ignore */ }
 }
 
 /**
@@ -2053,10 +2090,13 @@ return {
     const layout = ctx.get('layout');
     const uiWorkspace = ctx.get('uiWorkspace');
     const sessions = ctx.get('sessions');
+    // accountUi：宿主内部 provide 的账号快照（getSnapshot().details.profile.value.name = 昵称）
+    const accountUi = ctx.get('accountUi');
     if (typeof window !== 'undefined') {
       if (layout !== undefined) window.__dshSeaExploreLayout = layout;
       if (uiWorkspace !== undefined) window.__dshSeaExploreWorkspace = uiWorkspace;
       if (sessions !== undefined) window.__dshSeaExploreSessions = sessions;
+      if (accountUi !== undefined) window.__dshSeaExploreAccountUi = accountUi;
     }
 
     // 重载清理：清空上一轮遗留的同名 filter，避免 lg-N 冲突导致
@@ -2099,6 +2139,17 @@ return {
         'dsh-sea-explore-chrome-transparent',
       );
     }
+
+    // 账号昵称异步加载：订阅 account-ui/change 事件刷新 tooltip。
+    // 同时首次主动读一次（事件可能已在插件加载前发出）。
+    // 不用 setInterval——常驻定时器会挂住进程（尤其测试环境）。
+    ctx.effect(() => {
+      refreshAccountNickname();
+      if (typeof ctx.on === 'function') {
+        return ctx.on('account-ui/change', refreshAccountNickname);
+      }
+      return undefined;
+    }, 'dsh-sea-explore-account-name');
 
     // 一次注册两种语言；重复注册（热重载、重复挂载）时会抛重复错误，
     // 此时保留已有字典即可，不影响渲染。

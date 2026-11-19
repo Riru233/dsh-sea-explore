@@ -14,6 +14,10 @@ check('account moved to navCol', /navCol\.appendChild\(accountRoot\)/.test(code)
 check('account found via _5Qcc8a_root', /_5Qcc8a_root/.test(code))
 check('account fallback via avatar', /data-avatar-status/.test(code))
 check('user name captured', code.includes("'data-shino-user-name'"))
+check('uses accountUi profile nickname', /function refreshAccountNickname\(\)/.test(code)
+  && /value\.name \|\| value\.contact/.test(code))
+check('does NOT fall back to aria-label (More)', !/getAttribute\('aria-label'\);\s*\n\s*if \(aria !== null\) accountRoot\.setAttribute\('data-shino-user-name'/.test(code))
+check('subscribes to account changes', /ctx\.on\('account-ui\/change', refreshAccountNickname\)/.test(code))
 check('tooltip content attr', /content: attr\(data-shino-user-name\)/.test(code))
 check('label hidden', /\[data-shino-account\] \[class\*="label"\] \{[\s\S]{0,60}?display: none !important/.test(code))
 check('pushed to bottom', /\[data-shino-account\] \{[\s\S]{0,120}?margin-top: auto !important/.test(code))
@@ -30,9 +34,9 @@ const dom = new JSDOM(`<!doctype html><html><body>
       <div class="wtg9ga_regionArea" id="region"></div>
       <nav class="wtg9ga_panelList" id="panelList"><button class="wtg9ga_panelRow" aria-label="plugins"></button></nav>
       <div class="_5Qcc8a_root" id="acct" data-inset="false">
-        <button class="_5Qcc8a_trigger" id="acctBtn" aria-label="menu">
+        <button class="_5Qcc8a_trigger" id="acctBtn" aria-label="更多">
           <span class="_5Qcc8a_avatar" data-avatar-status="ready"></span>
-          <span class="_5Qcc8a_label">Alice</span>
+          <span class="_5Qcc8a_label">更多</span>
         </button>
       </div>
     </div>
@@ -67,9 +71,12 @@ const React = {
   useLayoutEffect: fn => effects.push(fn),
   useRef: v => ({ current: v }),
 }
+const accountUiStub = {
+  getSnapshot: () => ({ details: { profile: { status: 'ready', value: { name: '张三' } } } }),
+}
 const plugin = captured.factory(n => n === 'react' ? React : (() => { throw new Error(n) })())
 plugin.apply({
-  get: () => undefined,
+  get: (k) => k === 'accountUi' ? accountUiStub : undefined,
   effect: fn => { fn(); return () => {} },
   slots: { inject: (k, cb) => { cb && cb(); return () => {} }, register: (o, r) => { if (o && o.name === 'shell.overlay') overlay = r; return () => {} } },
 })
@@ -80,7 +87,7 @@ const navCol = d.querySelector('[data-shino-navcol]')
 const acct = d.getElementById('acct')
 check('account element inside navCol', acct.parentElement === navCol)
 check('account is last child (bottom)', navCol.lastElementChild === acct)
-check('user name stored', acct.getAttribute('data-shino-user-name') === 'Alice',
+check('shows nickname not More', acct.getAttribute('data-shino-user-name') === '张三',
   acct.getAttribute('data-shino-user-name'))
 check('account removed from sidebar', d.getElementById('root').querySelector('#acct') === null)
 
