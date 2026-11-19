@@ -868,7 +868,7 @@ window.__ModuleLoader__.load({
         const marks = [
           '[data-shino-glass]', '[data-shino-card]', '[data-shino-menu-surface]',
           '[data-shino-code-block]', '[data-shino-guide-entry]',
-          '[data-shino-question-card]', '[data-shino-new-session]',
+          '[data-shino-question-card]', '[data-shino-plan-body]', '[data-shino-new-session]',
           '[data-shino-card-filter]', '[data-glass]',
         ];
         for (const el of document.querySelectorAll(marks.join(', '))) {
@@ -1300,6 +1300,7 @@ window.__ModuleLoader__.load({
       [data-shino-new-session][data-shino-glass],
       [data-shino-code-block][data-shino-glass],
       [data-shino-question-card],
+      [data-shino-plan-body],
       [data-question-reply] > div > div[data-shino-glass],
       [data-changed-files][data-shino-glass],
       header[data-window-drag]:has(> [data-conversation-header-leading])[data-shino-glass] {
@@ -1332,6 +1333,7 @@ window.__ModuleLoader__.load({
       body[data-ds-dark-theme] [data-shino-new-session][data-shino-glass],
       body[data-ds-dark-theme] [data-shino-code-block][data-shino-glass],
       body[data-ds-dark-theme] [data-shino-question-card],
+      body[data-ds-dark-theme] [data-shino-plan-body],
       body[data-ds-dark-theme] [data-question-reply] > div > div[data-shino-glass],
       body[data-ds-dark-theme] [data-changed-files][data-shino-glass],
       body[data-ds-dark-theme] header[data-window-drag]:has(> [data-conversation-header-leading])[data-shino-glass] {
@@ -1501,6 +1503,35 @@ window.__ModuleLoader__.load({
         background: transparent !important;
         border: 0 !important;
         box-shadow: none !important;
+      }
+      
+      /* 计划窗（TodoPanel）：玻璃挂在 .body 容器上，补一层半透明底，
+         圆角与阴影交给 GLASS_EDGE_CSS 统一处理；外层 section 保持透明。 */
+      [data-shino-plan-body] {
+        background: color-mix(in srgb, var(--dsw-alias-bg-overlay) 30%, transparent) !important;
+        border-radius: var(--dsw-radius-lg, 12px) !important;
+      }
+      
+      body[data-ds-dark-theme] [data-shino-plan-body] {
+        background: color-mix(in srgb, var(--dsw-alias-bg-overlay) 24%, transparent) !important;
+      }
+      
+      /* 外层 section 有 overflow:hidden，会裁掉子元素 .body 画在外缘的 outline。
+         把 .body 的 outline 收到内侧（outline-offset 负值），使其不被裁掉。 */
+      [data-shino-plan-body] {
+        outline-offset: -1px !important;
+      }
+      
+      /* 外层 section（todo-panel）只作容器：保持透明、无边框。
+         同时清掉宿主的 overflow/backdrop-filter——否则既裁 outline，
+         又让宿主自己的菜单底色与我们的玻璃叠加。 */
+      [data-testid="todo-panel"] {
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
       }
       
       /* 上下文里用户回答提问的气泡：底色同用户气泡（--dsw-specific-bubble）。 */
@@ -1861,6 +1892,11 @@ window.__ModuleLoader__.load({
       // DOM：div.wnLwla_frame[data-question-key] > div.wnLwla_card。
       const QUESTION_CARD = '[data-question-key] > [class*="_card"], [data-question-key] > [class*="card"]';
       
+      // 计划窗（TodoPanel）：玻璃挂在 section[data-testid="todo-panel"] 内的
+      // .DXuOLW_body（flex 容器，承载标题与任务列表；本身无底色，需补半透明底）。
+      // data-testid 是宿主稳定属性，_body 用类名片段匹配以兼容哈希变化。
+      const PLAN_BODY = '[data-testid="todo-panel"] > [class*="_body"]';
+      
       // 上下文里用户回答模型提问的那张卡（QuestionReplyView 的 row）。
       // 真正要玻璃化的是 row 里那张气泡：row > bubbleWidth > UserMessageBubble。
       // UserMessageBubble 自己没有 data 属性（只有 _bubble_<hash> 这类哈希类名），
@@ -1900,6 +1936,8 @@ window.__ModuleLoader__.load({
         { selector: QUESTION_CARD, light: true, mark: 'data-shino-question-card' },
         // 上下文里用户回答提问的气泡。
         { selector: REPLY_BUBBLE, light: true },
+        // 计划窗（TodoPanel）的任务列表容器：玻璃挂在 .body，section 外层保持透明。
+        { selector: PLAN_BODY, light: true, mark: 'data-shino-plan-body' },
         // 通用模态框：设置面板、确认框、图片查看器都走这套。
         // [aria-modal="true"] 把它和菜单、tooltip 区分开。
         { selector: MODAL_PANEL, light: true },
@@ -2065,6 +2103,7 @@ window.__ModuleLoader__.load({
         el.removeAttribute('data-shino-code-block');
         el.removeAttribute('data-shino-guide-entry');
         el.removeAttribute('data-shino-question-card');
+        el.removeAttribute('data-shino-plan-body');
         el.removeAttribute('data-shino-card');
         el.style.removeProperty('backdrop-filter');
         el.style.removeProperty('-webkit-backdrop-filter');
