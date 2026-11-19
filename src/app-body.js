@@ -68,7 +68,8 @@ function resetLiquidGlassState() {
   const marks = [
     '[data-shino-glass]', '[data-shino-card]', '[data-shino-menu-surface]',
     '[data-shino-code-block]', '[data-shino-guide-entry]',
-    '[data-shino-new-session]', '[data-shino-card-filter]', '[data-glass]',
+    '[data-shino-question-card]', '[data-shino-new-session]',
+    '[data-shino-card-filter]', '[data-glass]',
   ];
   for (const el of document.querySelectorAll(marks.join(', '))) {
     stripGlass(el);
@@ -498,7 +499,7 @@ const GLASS_EDGE_CSS = `
 [data-shino-guide-entry][data-shino-glass],
 [data-shino-new-session][data-shino-glass],
 [data-shino-code-block][data-shino-glass],
-[data-question-key][data-shino-glass],
+[data-shino-question-card],
 [data-question-reply] > div > div[data-shino-glass],
 [data-changed-files][data-shino-glass],
 header[data-window-drag]:has(> [data-conversation-header-leading])[data-shino-glass] {
@@ -530,7 +531,7 @@ body[data-ds-dark-theme] [data-sidebar-right-guide-entry][data-shino-glass],
 body[data-ds-dark-theme] [data-shino-guide-entry][data-shino-glass],
 body[data-ds-dark-theme] [data-shino-new-session][data-shino-glass],
 body[data-ds-dark-theme] [data-shino-code-block][data-shino-glass],
-body[data-ds-dark-theme] [data-question-key][data-shino-glass],
+body[data-ds-dark-theme] [data-shino-question-card],
 body[data-ds-dark-theme] [data-question-reply] > div > div[data-shino-glass],
 body[data-ds-dark-theme] [data-changed-files][data-shino-glass],
 body[data-ds-dark-theme] header[data-window-drag]:has(> [data-conversation-header-leading])[data-shino-glass] {
@@ -683,10 +684,23 @@ body[data-ds-dark-theme] [data-message-bubble][data-shino-glass] {
   background: color-mix(in srgb, var(--dsw-alias-markdown-code-block) 40%, transparent) !important;
 }
 
-/* 模型提问的卡片：宿主底色是 --dsw-specific-input-major（实色），
-   掏空后交给玻璃。 */
-[data-question-key][data-shino-glass] {
+/* 模型提问卡：玻璃挂在内层 .card（标记 data-shino-question-card），
+   宿主底色是 --dsw-specific-input-major（实色），掏空后交给玻璃。 */
+[data-shino-question-card] {
   background: color-mix(in srgb, var(--dsw-specific-input-major) 24%, transparent) !important;
+}
+
+/* 外层 .frame 只作布局容器：保持完全透明、无边框，不承载玻璃。 */
+[data-question-key] {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+body[data-ds-dark-theme] [data-question-key] {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 /* 上下文里用户回答提问的气泡：底色同用户气泡（--dsw-specific-bubble）。 */
@@ -1042,8 +1056,10 @@ const MODAL_PANEL = '[role="dialog"][aria-modal="true"]';
 // 这里改用侧边栏自己的模块类名：wtg9ga_newSession 只出现在这一个按钮上。
 const NEW_SESSION_BUTTON = 'button[class*="_newSession"]';
 
-// 模型向用户提问的卡片（QuestionComposer 的 frame）。
-const QUESTION_CARD = '[data-question-key]';
+// 模型向用户提问的卡片：玻璃要挂在 QuestionComposer 的内层 .card 上，
+// 而不是外层 .frame（wnLwla_frame）。frame 只是布局容器，保持无边框、透明。
+// DOM：div.wnLwla_frame[data-question-key] > div.wnLwla_card。
+const QUESTION_CARD = '[data-question-key] > [class*="_card"], [data-question-key] > [class*="card"]';
 
 // 上下文里用户回答模型提问的那张卡（QuestionReplyView 的 row）。
 // 真正要玻璃化的是 row 里那张气泡：row > bubbleWidth > UserMessageBubble。
@@ -1080,8 +1096,8 @@ const GLASS_TARGETS = [
   // 回复里的代码块。deepest：只取候选里最深的那些（代码块容器本身），
   // 把 :has() 向上匹配带出的祖先（消息节点、流容器）剔掉。
   { selector: CODE_BLOCK, light: true, mark: 'data-shino-code-block', deepest: true },
-  // 模型向用户提问的卡片。
-  { selector: QUESTION_CARD, light: true },
+  // 模型向用户提问的卡片：玻璃挂在内层 card，frame 保持透明无边框。
+  { selector: QUESTION_CARD, light: true, mark: 'data-shino-question-card' },
   // 上下文里用户回答提问的气泡。
   { selector: REPLY_BUBBLE, light: true },
   // 通用模态框：设置面板、确认框、图片查看器都走这套。
@@ -1248,6 +1264,7 @@ function stripGlass(el) {
   el.removeAttribute('data-glass-light');
   el.removeAttribute('data-shino-code-block');
   el.removeAttribute('data-shino-guide-entry');
+  el.removeAttribute('data-shino-question-card');
   el.removeAttribute('data-shino-card');
   el.style.removeProperty('backdrop-filter');
   el.style.removeProperty('-webkit-backdrop-filter');

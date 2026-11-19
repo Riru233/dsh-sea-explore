@@ -15,7 +15,9 @@ const dom = new JSDOM(`<!doctype html><html><body>
   </header>
   <div data-presented-file id="presented"></div>
   <div data-menu-material="translucent" id="nsurf"><div aria-hidden="true" id="nmat"></div></div>
-  <div data-question-key="k1" id="question"></div>
+  <div data-question-key="k1" id="question">
+    <div class="wnLwla_card" id="question-card"></div>
+  </div>
   <div data-question-reply="c1" id="reply">
     <div id="reply-width"><div id="reply-bubble"></div></div>
     <div id="reply-actions"></div>
@@ -132,11 +134,13 @@ check('parent card carries data-glass-light', card.getAttribute('data-glass-ligh
 check('presented card has glass marker', presented.getAttribute('data-shino-glass') !== null)
 check('menu material has glass marker', nmat.getAttribute('data-glass') !== null)
 
-// 模型提问卡与上下文里的用户回答气泡
+// 模型提问卡：玻璃在内层 card，外层 frame 保持透明无玻璃
 const question = d.getElementById('question')
+const questionCard = d.getElementById('question-card')
 const replyBubble = d.getElementById('reply-bubble')
 const replyActions = d.getElementById('reply-actions')
-check('question card has glass marker', question.getAttribute('data-shino-glass') !== null)
+check('question card has glass marker', questionCard.getAttribute('data-shino-glass') !== null)
+check('question frame has no glass marker', question.getAttribute('data-shino-glass') === null)
 check('reply bubble has glass marker', replyBubble.getAttribute('data-shino-glass') !== null)
 check('reply actions row NOT glassed', replyActions.getAttribute('data-shino-glass') === null)
 
