@@ -27,7 +27,9 @@ check('navCol no longer overlaps content (frame reserves space)', !/\[class\*="s
 check('sidebar root follows content width (no clipping)',
   /\[class\*="sidebarCol"\] \[class\*="wtg9ga_root"\] \{[\s\S]{0,120}?width: 100% !important/.test(code))
 check('root width NOT modified', !/data-shino-orig-width/.test(code))
-check('no handle transform hack', !/data-side="sidebar"\] \{\s*transform/.test(code))
+check('no sidebar handle transform hack', !/data-side="sidebar"\] \{\s*transform/.test(code))
+check('rightbar handle offset -48px',
+  /\[class\*="handle"\]\[data-side="rightbar"\] \{[\s\S]{0,120}?transform: translateX\(-48px\) !important/.test(code))
 check('panelRow 36px', /button\[class\*="wtg9ga_panelRow"\] \{[\s\S]{0,200}?width: 36px !important/.test(code))
 check('title hidden by default', /\[class\*="wtg9ga_panelTitle"\] \{[\s\S]{0,300}?opacity: 0 !important/.test(code))
 check('title visible on its own row hover',

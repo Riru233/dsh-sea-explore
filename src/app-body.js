@@ -195,6 +195,14 @@ const SIDEBAR_LAYOUT_CSS = `
   box-sizing: border-box !important;
 }
 
+/* rightbar 拖拽手柄：frame 加了 padding-left:48px 后，内容区整体左移，
+   但宿主写入的 handle left 仍是按原宽度算的，手柄会比它控制的边界偏右。
+   用 transform 向左补偿 48px（left 是 inline 值，改不动，只能用 transform）。
+   sidebar 手柄的边界在左边缘，不受 padding 影响，无需补偿。 */
+[class*="handle"][data-side="rightbar"] {
+  transform: translateX(-48px) !important;
+}
+
 /* 左侧图标导航栏：在 navCol 内正常布局（不再 fixed）。
    图标 36px，hover 才展开标签。 */
 nav[class*="wtg9ga_panelList"] {
@@ -370,13 +378,67 @@ nav[class*="wtg9ga_panelList"] [class*="wtg9ga_panelUnpin"] {
   display: none !important;
 }
 
+/* 用户按钮（账号区）：迁到导航栏底部，只显示头像，hover 显示用户名。
+   宿主 root 带 data-inset，这里用我们标记的 data-shino-account 定位。
+   margin-top:auto 把它压到导航栏最底部。 */
+[data-shino-navcol] [data-shino-account] {
+  margin-top: auto !important;
+  width: 48px !important;
+  flex: none !important;
+  display: flex !important;
+  justify-content: center !important;
+  position: relative !important;
+}
+
+/* 触发按钮压缩到 36px，居中、无 padding、无常驻标签。 */
+[data-shino-navcol] [data-shino-account] button {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  overflow: visible !important;
+}
+
+/* 常驻文字标签一律隐藏（含宽模式下的 .label）。 */
+[data-shino-navcol] [data-shino-account] [class*="label"] {
+  display: none !important;
+}
+
+/* hover 时在头像右侧浮出用户名气泡，样式与导航图标的 tooltip 一致。 */
+[data-shino-navcol] [data-shino-account]::after {
+  content: attr(data-shino-user-name);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-overlay);
+  color: var(--dsw-alias-label-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  line-height: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease;
+  z-index: 60;
+}
+
+[data-shino-navcol] [data-shino-account]:hover::after {
+  opacity: 1;
+}
+
 /* _5Qcc8a_trigger：与导航图标同为 36px，无标签，hover 显示工具提示。
    该元素本身带宿主的工具提示机制时，这里只统一尺寸与触发方式。 */
 [class*="_5Qcc8a_trigger"] {
   width: 36px !important;
   height: 36px !important;
   min-width: 36px !important;
-  padding: 0 !important;
+  margin: 0 5px !important;
   box-sizing: border-box !important;
 }
 `;
@@ -1594,6 +1656,29 @@ function applySidebarLayout(root) {
     const navCol = doc.querySelector('[data-shino-navcol]');
     if (navCol !== null && panelList.parentElement !== navCol) {
       navCol.appendChild(panelList);
+    }
+
+    // 用户按钮（账号区）从侧边栏迁到导航栏底部：只显示头像，hover 显示用户名。
+    // 宿主结构：div[data-inset]._5Qcc8a_root > button._5Qcc8a_trigger > 头像 + label。
+    // Menu 是 portal 的，锚点是那个 button，button 随 root 一起搬走，菜单定位不受影响。
+    const accountRoot = sidebar.querySelector('[class*="_5Qcc8a_root"]')
+      || (sidebar.querySelector('[data-avatar-status]') !== null
+        ? sidebar.querySelector('[data-avatar-status]').closest('[data-inset]') : null);
+    if (accountRoot !== null && navCol !== null) {
+      accountRoot.setAttribute('data-shino-account', '');
+      // 抓取用户名：label 只在宽模式渲染，抓不到时用按钮 aria-label 兜底。
+      const labelEl = accountRoot.querySelector('[class*="label"]');
+      const name = labelEl !== null && labelEl.textContent !== null
+        ? labelEl.textContent.trim() : '';
+      if (name !== '') {
+        accountRoot.setAttribute('data-shino-user-name', name);
+      } else if (accountRoot.getAttribute('data-shino-user-name') === null) {
+        const btn = accountRoot.querySelector('button');
+        const aria = btn !== null ? btn.getAttribute('aria-label') : null;
+        if (aria !== null) accountRoot.setAttribute('data-shino-user-name', aria);
+      }
+      // 放到 navCol 末尾，CSS 里 margin-top:auto 把它压到底部。
+      if (accountRoot.parentElement !== navCol) navCol.appendChild(accountRoot);
     }
 
     sidebar.setAttribute(SIDEBAR_MARK, '');
