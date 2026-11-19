@@ -868,7 +868,7 @@ window.__ModuleLoader__.load({
         const marks = [
           '[data-shino-glass]', '[data-shino-card]', '[data-shino-menu-surface]',
           '[data-shino-code-block]', '[data-shino-guide-entry]',
-          '[data-shino-question-card]', '[data-shino-plan-body]', '[data-shino-new-session]',
+          '[data-shino-question-card]', '[data-shino-plan-body]', '[data-shino-inline-code]', '[data-shino-new-session]',
           '[data-shino-card-filter]', '[data-glass]',
         ];
         for (const el of document.querySelectorAll(marks.join(', '))) {
@@ -925,9 +925,6 @@ window.__ModuleLoader__.load({
          !important 压过主题样式表，样式一注入即生效，不等 React 渲染。 */
       body,
       body[data-ds-dark-theme] {
-        --dsw-specific-sidebar-fill: transparent !important;
-      }
-      
       /* 元素级兜底：这些背景不经该 token（来自 --dsw-alias-bg-base 等），
          单独掏空。frame 用 :has(> centerCol) 锁定 AppFrame 根，
          避免命中同名的会话宽度控制 _frame。 */
@@ -1301,6 +1298,7 @@ window.__ModuleLoader__.load({
       [data-shino-code-block][data-shino-glass],
       [data-shino-question-card],
       [data-shino-plan-body],
+      [data-shino-inline-code],
       [data-question-reply] > div > div[data-shino-glass],
       [data-changed-files][data-shino-glass],
       header[data-window-drag]:has(> [data-conversation-header-leading])[data-shino-glass] {
@@ -1334,6 +1332,7 @@ window.__ModuleLoader__.load({
       body[data-ds-dark-theme] [data-shino-code-block][data-shino-glass],
       body[data-ds-dark-theme] [data-shino-question-card],
       body[data-ds-dark-theme] [data-shino-plan-body],
+      body[data-ds-dark-theme] [data-shino-inline-code],
       body[data-ds-dark-theme] [data-question-reply] > div > div[data-shino-glass],
       body[data-ds-dark-theme] [data-changed-files][data-shino-glass],
       body[data-ds-dark-theme] header[data-window-drag]:has(> [data-conversation-header-leading])[data-shino-glass] {
@@ -1477,6 +1476,18 @@ window.__ModuleLoader__.load({
          这类代码块没有 data-code-block-banner，不会被 CODE_BLOCK 选择器命中，
          所以走独立规则：容器与 pre 都掏空，玻璃/透明底才能透上来。
          _block_kjs70 是宿主的哈希类名片段，web/native 构建里都含 block 段。 */
+      /* 行内代码（markdown inlineCode）：宿主用 --dsw-alias-markdown-inline-code
+         铺实色底并画 0.5px 边框，掏空后交给玻璃；保留圆角与内边距。
+         outline 由 GLASS_EDGE_CSS 统一提供，这里只把它收到内侧避免被裁。 */
+      [data-shino-inline-code][data-shino-glass] {
+        background: color-mix(in srgb, var(--dsw-alias-markdown-inline-code) 30%, transparent) !important;
+        outline-offset: -1px !important;
+      }
+      
+      body[data-ds-dark-theme] [data-shino-inline-code][data-shino-glass] {
+        background: color-mix(in srgb, var(--dsw-alias-markdown-inline-code) 40%, transparent) !important;
+      }
+      
       .md-code-block :where(pre),
       [class*="block_"] :where(pre):not(:has([data-code-block-banner])) {
         background: transparent !important;
@@ -1897,6 +1908,11 @@ window.__ModuleLoader__.load({
       // data-testid 是宿主稳定属性，_body 用类名片段匹配以兼容哈希变化。
       const PLAN_BODY = '[data-testid="todo-panel"] > [class*="_body"]';
       
+      // 行内代码（markdown inlineCode → <code>）：宿主用
+      // --dsw-alias-markdown-inline-code 铺实色底。排除代码块 <pre> 里的 <code>，
+      // 那些由代码块玻璃统一处理（CODE_BLOCK），不单独玻璃化。
+      const INLINE_CODE = 'code:not(pre code):not([data-shino-code-block] code)';
+      
       // 上下文里用户回答模型提问的那张卡（QuestionReplyView 的 row）。
       // 真正要玻璃化的是 row 里那张气泡：row > bubbleWidth > UserMessageBubble。
       // UserMessageBubble 自己没有 data 属性（只有 _bubble_<hash> 这类哈希类名），
@@ -1938,6 +1954,8 @@ window.__ModuleLoader__.load({
         { selector: REPLY_BUBBLE, light: true },
         // 计划窗（TodoPanel）的任务列表容器：玻璃挂在 .body，section 外层保持透明。
         { selector: PLAN_BODY, light: true, mark: 'data-shino-plan-body' },
+        // 行内代码 <code>：排除代码块内的 code，避免与代码块玻璃重复。
+        { selector: INLINE_CODE, light: true, mark: 'data-shino-inline-code' },
         // 通用模态框：设置面板、确认框、图片查看器都走这套。
         // [aria-modal="true"] 把它和菜单、tooltip 区分开。
         { selector: MODAL_PANEL, light: true },
@@ -2104,6 +2122,7 @@ window.__ModuleLoader__.load({
         el.removeAttribute('data-shino-guide-entry');
         el.removeAttribute('data-shino-question-card');
         el.removeAttribute('data-shino-plan-body');
+        el.removeAttribute('data-shino-inline-code');
         el.removeAttribute('data-shino-card');
         el.style.removeProperty('backdrop-filter');
         el.style.removeProperty('-webkit-backdrop-filter');
