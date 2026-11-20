@@ -14,7 +14,7 @@ function check (label, ok, detail) {
 check('remembers session before leaving', code.includes('function rememberCurrentSession()'))
 check('uses remembered id first', /rememberedSessionId !== null \? rememberedSessionId : currentMainSessionId\(\)/.test(code))
 check('declares uiWorkspace/sessions/layout as deps',
-  /inject: \['slots', 'layout', 'uiWorkspace', 'sessions'\]/.test(code))
+  /inject: \['slots', 'layout', 'uiWorkspace', 'sessions', 'accountUi'\]/.test(code))
 
 // 清掉模块级全局
 for (const k of ['__dshSeaExploreSidebarObserver', '__dshSeaExploreNavClicks', '__dshSeaExploreToggleMem',

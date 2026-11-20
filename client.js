@@ -925,6 +925,9 @@ window.__ModuleLoader__.load({
          !important 压过主题样式表，样式一注入即生效，不等 React 渲染。 */
       body,
       body[data-ds-dark-theme] {
+        --dsw-specific-sidebar-fill: transparent !important;
+      }
+      
       /* 元素级兜底：这些背景不经该 token（来自 --dsw-alias-bg-base 等），
          单独掏空。frame 用 :has(> centerCol) 锁定 AppFrame 根，
          避免命中同名的会话宽度控制 _frame。 */
@@ -1081,7 +1084,7 @@ window.__ModuleLoader__.load({
         pointer-events: none !important;
         display: flex !important;
         flex-direction: column !important;
-        gap: 0 !important;
+        gap: 5px !important;
         transition: max-width 160ms ease, opacity 120ms ease !important;
       }
       [class*="wtg9ga_root"][data-shino-region-visible] [class*="wtg9ga_regionArea"] {
@@ -1163,6 +1166,21 @@ window.__ModuleLoader__.load({
         opacity: 1 !important;
       }
       
+      /* 导航工具提示的液态玻璃：掏空宿主实色底（--dsw-alias-bg-overlay），
+         换成半透明底，让 backdrop-filter 能采样到背后的内容。
+         选择器带 span 前缀以把 specificity 提到 (0,2,1)，压过宿主 panelTitle
+         那条同为 (0,2,1)、写在前面的实色背景规则；否则提示仍是实色。
+         透明度用主题 token --dsw-alias-bg-overlay，并按日间/夜间分别调：
+         两种模式用不同的底色 token 值 + 不同混合比例，自动跟随主题切换。
+         描边由 GLASS_EDGE_CSS 统一提供。 */
+      span[data-shino-nav-tooltip][data-shino-glass] {
+        background: color-mix(in srgb, var(--dsw-alias-bg-overlay) 55%, transparent) !important;
+      }
+      
+      body[data-ds-dark-theme] span[data-shino-nav-tooltip][data-shino-glass] {
+        background: color-mix(in srgb, var(--dsw-alias-bg-overlay) 42%, transparent) !important;
+      }
+      
       /* 收起侧边栏时保留侧边导航栏：导航已在 frame 的 navCol 内，
          但宿主的 .collapsed .panelList{display:none} 仍会命中，这里覆盖掉。 */
       [data-shino-navcol] nav[class*="wtg9ga_panelList"] {
@@ -1203,31 +1221,6 @@ window.__ModuleLoader__.load({
       /* 常驻文字标签一律隐藏（含宽模式下的 .label）。 */
       [data-shino-navcol] [data-shino-account] [class*="label"] {
         display: none !important;
-      }
-      
-      /* hover 时在头像右侧浮出用户名气泡，样式与导航图标的 tooltip 一致。 */
-      [data-shino-navcol] [data-shino-account]::after {
-        content: attr(data-shino-user-name);
-        position: absolute;
-        left: calc(100% + 10px);
-        top: 50%;
-        transform: translateY(-50%);
-        white-space: nowrap;
-        padding: 5px 10px;
-        border-radius: 6px;
-        background: var(--dsw-alias-bg-overlay);
-        color: var(--dsw-alias-label-primary);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-        font-size: 12px;
-        line-height: 16px;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 100ms ease;
-        z-index: 60;
-      }
-      
-      [data-shino-navcol] [data-shino-account]:hover::after {
-        opacity: 1;
       }
       
       /* _5Qcc8a_trigger：与导航图标同为 36px，无标签，hover 显示工具提示。
@@ -1299,6 +1292,7 @@ window.__ModuleLoader__.load({
       [data-shino-question-card],
       [data-shino-plan-body],
       [data-shino-inline-code],
+      [data-shino-nav-tooltip],
       [data-question-reply] > div > div[data-shino-glass],
       [data-changed-files][data-shino-glass],
       header[data-window-drag]:has(> [data-conversation-header-leading])[data-shino-glass] {
@@ -1333,6 +1327,7 @@ window.__ModuleLoader__.load({
       body[data-ds-dark-theme] [data-shino-question-card],
       body[data-ds-dark-theme] [data-shino-plan-body],
       body[data-ds-dark-theme] [data-shino-inline-code],
+      body[data-ds-dark-theme] [data-shino-nav-tooltip],
       body[data-ds-dark-theme] [data-question-reply] > div > div[data-shino-glass],
       body[data-ds-dark-theme] [data-changed-files][data-shino-glass],
       body[data-ds-dark-theme] header[data-window-drag]:has(> [data-conversation-header-leading])[data-shino-glass] {
@@ -1563,6 +1558,40 @@ window.__ModuleLoader__.load({
          暗色底本身就重，再压一层会把背景压成纯黑，玻璃失去可折射的内容。 */
       body[data-ds-dark-theme] [role="dialog"][aria-modal="true"][data-shino-glass] {
         background: color-mix(in srgb, var(--dsw-alias-bg-overlay) 24%, transparent) !important;
+      }
+      
+      /* 模态框入场：缩放弹出（0.94 → 1）。
+         挂在面板自身上——元素自身的 transform 不截断它自己的 backdrop-filter，
+         所以缩放全程玻璃折射都在；若挂在祖先上才会失效。
+         用 backwards 而非 both：结束后不残留 transform，避免把面板变成
+         定位包含块（会改变子元素的 fixed/anchor 定位基准）。
+         遮罩层（overlay）不参与，它需要保持整屏压暗。 */
+      [role="dialog"][aria-modal="true"][data-shino-glass] {
+        transform-origin: center;
+        animation: shino-modal-pop-in 0.26s cubic-bezier(0.2, 1.1, 0.35, 1) backwards;
+      }
+      
+      @keyframes shino-modal-pop-in {
+        from { transform: scale(0.94); }
+        to { transform: scale(1); }
+      }
+      
+      /* 退场：反向缩放。由 installModalExitAnimation 在拦截关闭动作时打上
+         data-shino-modal-exit，播完（或被兜底定时器放行）宿主才真正卸载节点。 */
+      [role="dialog"][aria-modal="true"][data-shino-glass][data-shino-modal-exit] {
+        animation: shino-modal-pop-out 0.18s cubic-bezier(0.4, 0, 1, 1) forwards !important;
+      }
+      
+      @keyframes shino-modal-pop-out {
+        from { transform: scale(1); }
+        to { transform: scale(0.94); }
+      }
+      
+      /* 用户开了「减少动态效果」时不播动画。 */
+      @media (prefers-reduced-motion: reduce) {
+        [role="dialog"][aria-modal="true"][data-shino-glass] {
+          animation: none !important;
+        }
       }
       
       /* 右侧栏引导页的入口按钮：宿主底色是 --dsw-alias-bg-layer-1，
@@ -1913,6 +1942,11 @@ window.__ModuleLoader__.load({
       // 那些由代码块玻璃统一处理（CODE_BLOCK），不单独玻璃化。
       const INLINE_CODE = 'code:not(pre code):not([data-shino-code-block] code)';
       
+      // 侧边导航栏的悬停工具提示：宿主 panelTitle 与我们自建的 workspace 标题。
+      // 两者都是 CSS tooltip（DOM 常驻、hover 才显示 opacity），首次扫描即可玻璃化。
+      const NAV_TOOLTIP = '[data-shino-navcol] [class*="panelTitle"], '
+        + '[data-shino-navcol] .shino-workspace-title';
+      
       // 上下文里用户回答模型提问的那张卡（QuestionReplyView 的 row）。
       // 真正要玻璃化的是 row 里那张气泡：row > bubbleWidth > UserMessageBubble。
       // UserMessageBubble 自己没有 data 属性（只有 _bubble_<hash> 这类哈希类名），
@@ -1956,6 +1990,9 @@ window.__ModuleLoader__.load({
         { selector: PLAN_BODY, light: true, mark: 'data-shino-plan-body' },
         // 行内代码 <code>：排除代码块内的 code，避免与代码块玻璃重复。
         { selector: INLINE_CODE, light: true, mark: 'data-shino-inline-code' },
+        // 侧边导航栏的悬停工具提示（宿主 panelTitle + 自建 workspace 标题）。
+        // 小尺寸气泡不挂光晕，只保留玻璃与描边。
+        { selector: NAV_TOOLTIP, light: false, mark: 'data-shino-nav-tooltip' },
         // 通用模态框：设置面板、确认框、图片查看器都走这套。
         // [aria-modal="true"] 把它和菜单、tooltip 区分开。
         { selector: MODAL_PANEL, light: true },
@@ -2541,29 +2578,8 @@ window.__ModuleLoader__.load({
               ? sidebar.querySelector('[data-avatar-status]').closest('[data-inset]') : null);
           if (accountRoot !== null && navCol !== null) {
             accountRoot.setAttribute('data-shino-account', '');
-      
-            // 昵称来源优先级：
-            //   1. accountUi 快照 profile.value.name / contact（折叠时 label 不渲染，这是主来源）
-            //   2. DOM 里的账号 label（宽模式才有）
-            // 绝不用按钮的 aria-label（那是"更多/菜单"，不是昵称）。
-            let nickname = '';
-            const accountUiSvc = (typeof window !== 'undefined') ? window.__dshSeaExploreAccountUi : undefined;
-            if (accountUiSvc !== undefined && typeof accountUiSvc.getSnapshot === 'function') {
-              try {
-                const snap = accountUiSvc.getSnapshot();
-                const profile = snap !== null && snap !== undefined && snap.details !== null && snap.details !== undefined
-                  ? snap.details.profile : undefined;
-                if (profile !== undefined && profile !== null && profile.status === 'ready') {
-                  const value = profile.value || {};
-                  nickname = (value.name || value.contact || '').trim();
-                }
-              } catch (e) { /* ignore */ }
-            }
-            if (nickname === '') {
-              const labelEl = accountRoot.querySelector('[class*="_5Qcc8a_label"], [class*="label"]');
-              if (labelEl !== null && labelEl.textContent !== null) nickname = labelEl.textContent.trim();
-            }
-            if (nickname !== '') accountRoot.setAttribute('data-shino-user-name', nickname);
+            // 昵称 tooltip 已移除：宿主账号快照 details.profile 只在特定时机加载，
+            // 拿不到时 hover 会一片空白。这里不再创建提示元素，头像 hover 无反应。
             // 放到 navCol 末尾，CSS 里 margin-top:auto 把它压到底部。
             if (accountRoot.parentElement !== navCol) navCol.appendChild(accountRoot);
           }
@@ -2631,31 +2647,6 @@ window.__ModuleLoader__.load({
             }
           }
         }
-      }
-      
-      /**
-       * 从 accountUi 快照读出昵称（profile.value.name ?? contact）。
-       * 账号 profile 是异步加载的，首次 apply 时可能还没 ready，
-       * 所以用定时器反复写，直到拿到昵称。
-       */
-      function refreshAccountNickname() {
-        if (typeof document === 'undefined') return;
-        const acct = document.querySelector('[data-shino-account]');
-        if (acct === null) return;
-        // 已经有真实昵称就不重复写（避免覆盖成空）。
-        if ((acct.getAttribute('data-shino-user-name') || '') !== '') return;
-        const accountUi = (typeof window !== 'undefined') ? window.__dshSeaExploreAccountUi : undefined;
-        if (accountUi === undefined || typeof accountUi.getSnapshot !== 'function') return;
-        try {
-          const snap = accountUi.getSnapshot();
-          const details = snap !== null && snap !== undefined ? snap.details : undefined;
-          const profile = details !== null && details !== undefined ? details.profile : undefined;
-          if (profile !== undefined && profile !== null && profile.status === 'ready') {
-            const value = profile.value || {};
-            const nickname = (value.name || value.contact || '').trim();
-            if (nickname !== '') acct.setAttribute('data-shino-user-name', nickname);
-          }
-        } catch (e) { /* ignore */ }
       }
       
       /**
@@ -2857,18 +2848,48 @@ window.__ModuleLoader__.load({
       
         const menu = doc.createElement('div');
         menu.id = 'shino-nav-menu';
-        menu.setAttribute('data-shino-context-menu', '');
+        // 复刻宿主系统菜单的 DOM 契约，直接复用已有的玻璃 + 弹出/逐项错位动画：
+        //   <div data-menu-material data-menu-phase="enter" role="menu">
+        //     <div aria-hidden="true">   ← 玻璃层（MENU_GLASS_LAYER 命中）
+        //     <div role="menuitem">…     ← 菜单项（indexMenuItems 写错位序号）
+        menu.setAttribute('data-menu-material', '');
+        menu.setAttribute('data-menu-phase', 'enter');
+        menu.setAttribute('role', 'menu');
+        menu.setAttribute('data-shino-nav-menu', '');
+        // data-context-menu：走「玻璃挂在 surface 自身」的路径（与宿主右键菜单一致）。
+        // 这很关键——若玻璃挂在 aria-hidden 材质层（z-index:-1 的子元素），
+        // 表面的 scale() 入场动画会把它变成 backdrop root，材质层的采样被截断，
+        // 玻璃在整段动画期间都是空的、动画结束才出现。挂 surface 自身则：
+        // 元素自身的 transform 不截断它自己的 backdrop-filter，全程都有玻璃。
+        menu.setAttribute('data-context-menu', '');
         menu.style.cssText = 'position:fixed;z-index:10000;min-width:150px;padding:4px;'
-          + 'border-radius:8px;background:var(--dsw-alias-bg-overlay);'
-          + 'box-shadow:0 8px 24px rgba(0,0,0,.35);font-size:13px;'
+          + 'border-radius:20px;font-size:13px;'
           + 'color:var(--dsw-alias-label-primary);';
         menu.style.left = Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 10000) - 170) + 'px';
         menu.style.top = Math.min(y, (typeof window !== 'undefined' ? window.innerHeight : 10000) - 80) + 'px';
+      
+        // 材质层仍保留（宿主的层级约定），但玻璃滤镜改挂在 surface 上，
+        // 这一层只做透明占位，避免和 surface 的滤镜叠加。
+        const glassLayer = doc.createElement('div');
+        glassLayer.setAttribute('aria-hidden', 'true');
+        glassLayer.style.cssText = 'position:absolute;inset:0;z-index:-1;'
+          + 'border-radius:inherit;pointer-events:none;';
+        menu.appendChild(glassLayer);
       
         // 菜单项文字：优先用宿主 unpin 按钮的 aria-label（本地化过），
         // 否则用「取消固定 / Unpin」。
         const text = (unpinBtn !== null ? unpinBtn.getAttribute('aria-label') : null)
           || '取消固定 / Unpin';
+      
+        const dismiss = () => {
+          if (menu.getAttribute('data-menu-phase') === 'dismiss') return;
+          menu.setAttribute('data-menu-phase', 'dismiss');
+          // 等退出动画（0.14s）播完再移除。
+          setTimeout(() => menu.remove(), 160);
+        };
+      
+        const itemWrap = doc.createElement('div');
+        itemWrap.setAttribute('role', 'menuitem');
         const item = doc.createElement('button');
         item.type = 'button';
         item.textContent = text;
@@ -2884,19 +2905,131 @@ window.__ModuleLoader__.load({
           // 触发宿主原本的取消固定按钮，复用它的 setPinned 逻辑。
           // 窄栏模式下 panelUnpin 不渲染，此时该项不可操作。
           if (unpinBtn !== null) unpinBtn.click();
-          menu.remove();
+          dismiss();
         });
-        menu.appendChild(item);
+        itemWrap.appendChild(item);
+        menu.appendChild(itemWrap);
         (doc.body || doc.documentElement).appendChild(menu);
+        // 立即玻璃化，避免等待 MutationObserver 的下一帧时出现无背景闪烁。
+        // paintGlass 幂等（已有 data-shino-glass 会跳过），重复调用安全。
+        try { paintGlass(doc); } catch (e) { /* ignore */ }
       
-        // 点击空白处关闭菜单
+        // 点击空白处关闭菜单（走 dismiss 播放退出动画）
         const close = (e) => {
           if (e.target !== menu && !menu.contains(e.target)) {
-            menu.remove();
+            dismiss();
             doc.removeEventListener('pointerdown', close, true);
           }
         };
         setTimeout(() => doc.addEventListener('pointerdown', close, true), 0);
+      }
+      
+      /* ------------------------------------------- 模态框退场动画（拦截关闭） */
+      //
+      // 宿主的 Modal 是 `open ? createPortal(...) : null` —— 关闭时节点立刻从 DOM
+      // 消失，没有退场阶段，纯 CSS 做不了反向动画。
+      //
+      // 做法：在捕获阶段拦下三类关闭动作（Esc、点遮罩、点关闭按钮），先给面板
+      // 挂 data-shino-modal-exit 播反向缩放，延迟 MODAL_EXIT_MS 后再放行原动作。
+      // 放行方式不是"直接调用宿主回调"（拿不到），而是重新派发一个不带拦截标记的
+      // 同类事件，让宿主自己的监听器正常执行。
+      const MODAL_EXIT_MS = 180;
+      const MODAL_EXIT_ATTR = 'data-shino-modal-exit';
+      /* 标记"这次事件是拦截后重发的"，避免二次拦截造成死循环。 */
+      const MODAL_REPLAY_ATTR = '__shinoModalReplayed';
+      
+      /** 当前可见的模态框面板（宿主的 [role=dialog][aria-modal=true]）。 */
+      function currentModalPanel() {
+        if (typeof document === 'undefined') return null;
+        const panels = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+        for (const el of panels) {
+          // 排除已经在退场中的，避免重复播放。
+          if (el.getAttribute(MODAL_EXIT_ATTR) !== null) continue;
+          return el;
+        }
+        return null;
+      }
+      
+      /**
+       * 播放退场动画，随后重放原事件让宿主真正关闭。
+       * @param panel - 模态框面板。
+       * @param replay - 播放完要重发的事件构造函数。
+       */
+      function playModalExit(panel, replay) {
+        if (panel === null) { replay(); return; }
+        panel.setAttribute(MODAL_EXIT_ATTR, '');
+        // 双保险：即使 transitionend 没触发，也必须放行。
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          panel.removeEventListener('animationend', finish);
+          replay();
+        };
+        panel.addEventListener('animationend', finish, { once: true });
+        setTimeout(finish, MODAL_EXIT_MS + 60);
+      }
+      
+      /** 安装模态框退场拦截（跨重载幂等）。 */
+      function installModalExitAnimation() {
+        if (typeof document === 'undefined') return;
+        if (typeof window !== 'undefined' && window.__dshSeaExploreModalExit !== undefined) return;
+      
+        // 1) Esc 键：宿主在 window 上监听 keydown（捕获阶段）。
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') return;
+          if (event[MODAL_REPLAY_ATTR] === true) return;
+          const panel = currentModalPanel();
+          if (panel === null) return;
+          event.stopPropagation();
+          event.preventDefault();
+          playModalExit(panel, () => {
+            // 用面板所属窗口的构造器，避免依赖全局（测试环境/多窗口都稳）。
+            const view = (typeof document !== 'undefined' && document.defaultView !== null)
+              ? document.defaultView : window;
+            const replay = new view.KeyboardEvent('keydown', {
+              key: 'Escape', code: 'Escape', bubbles: true, cancelable: true,
+            });
+            replay[MODAL_REPLAY_ATTR] = true;
+            (document.activeElement || document.body).dispatchEvent(replay);
+          });
+        };
+        window.addEventListener('keydown', onKeyDown, true);
+      
+        // 2) 点遮罩 / 3) 点关闭按钮：都在 document 捕获阶段拦。
+        const onClick = (event) => {
+          if (event[MODAL_REPLAY_ATTR] === true) return;
+          const target = event.target;
+          if (target === null || target.closest === undefined) return;
+          const panel = currentModalPanel();
+          if (panel === null) return;
+          // 关闭按钮：宿主用 aria-label 标注（本地化文本），点击后卸载整个面板。
+          // 遮罩：模态框根容器下、与面板同级、aria-hidden 的兄弟节点。
+          const isCloseButton = target.closest('button') !== null
+            && target.closest('[role="dialog"][aria-modal="true"]') === panel
+            && target.closest('button').getAttribute('aria-label') !== null;
+          const root = panel.parentElement;
+          const isMask = root !== null && target === root.querySelector(':scope > [aria-hidden="true"]');
+          if (!isCloseButton && !isMask) return;
+          // 只拦真正会导致关闭的点击（遮罩点击由宿主自己判断，这里跟着拦）。
+          event.stopPropagation();
+          event.preventDefault();
+          playModalExit(panel, () => {
+            const view = (typeof document !== 'undefined' && document.defaultView !== null)
+              ? document.defaultView : window;
+            const replay = new view.MouseEvent(event.type, {
+              bubbles: true, cancelable: true, clientX: event.clientX, clientY: event.clientY,
+              button: event.button, buttons: event.buttons,
+            });
+            replay[MODAL_REPLAY_ATTR] = true;
+            (event.target || document.body).dispatchEvent(replay);
+          });
+        };
+        document.addEventListener('click', onClick, true);
+        // 遮罩用 mousedown 关闭的形态也覆盖。
+        document.addEventListener('mousedown', onClick, true);
+      
+        window.__dshSeaExploreModalExit = { onKeyDown, onClick };
       }
       
       
@@ -2922,9 +3055,11 @@ window.__ModuleLoader__.load({
         const h = React.createElement;
       
         React.useLayoutEffect(() => {
+          // 先建立侧边栏布局（创建 navCol、迁移 panelList），再玻璃化——
+          // 否则导航工具提示的选择器（要求 [data-shino-navcol] 祖先）在首帧匹配不到。
+          installSidebarLayoutObserver();
           paintGlass(document);
           installGlassEffectsOnce();
-          installSidebarLayoutObserver();
       
           if (typeof MutationObserver === 'undefined') return undefined;
           let queued = false;
@@ -2949,10 +3084,13 @@ window.__ModuleLoader__.load({
       /* ---------------------------------------------------------------- 注册 */
       
       return {
-        // 必需依赖：slots（注册 UI）+ layout/uiWorkspace/sessions（导航与会话恢复）。
+        // 必需依赖：slots（注册 UI）+ layout/uiWorkspace/sessions（导航与会话恢复）
+        // + accountUi（账号昵称快照）。
         // 之前只声明 slots，导致 ctx.get('uiWorkspace') 拿到 undefined，
         // 回首页时 openSession 从未被调用，右侧停在空白/残留页面。
-        inject: ['slots', 'layout', 'uiWorkspace', 'sessions'],
+        // accountUi 同理：不声明则 ctx.get('accountUi') 拿到 undefined，
+        // 头像 tooltip 只能退回 DOM label（窄栏下就是"更多"）。
+        inject: ['slots', 'layout', 'uiWorkspace', 'sessions', 'accountUi'],
         apply(ctx) {
           const locale = ctx.get('locale');
           const theme = ctx.get('theme');
@@ -2965,8 +3103,9 @@ window.__ModuleLoader__.load({
           const layout = ctx.get('layout');
           const uiWorkspace = ctx.get('uiWorkspace');
           const sessions = ctx.get('sessions');
-          // accountUi：宿主内部 provide 的账号快照（getSnapshot().details.profile.value.name = 昵称）
-          const accountUi = ctx.get('accountUi');
+          // accountUi：宿主 provide 的账号快照（getSnapshot().details.profile.value.name = 昵称）。
+          // inject 声明后 Cordis 把它挂到 ctx.accountUi；ctx.get 作为兜底。
+          const accountUi = ctx.accountUi !== undefined ? ctx.accountUi : ctx.get('accountUi');
           if (typeof window !== 'undefined') {
             if (layout !== undefined) window.__dshSeaExploreLayout = layout;
             if (uiWorkspace !== undefined) window.__dshSeaExploreWorkspace = uiWorkspace;
@@ -2982,6 +3121,14 @@ window.__ModuleLoader__.load({
           //   1. CSS 已在模块 factory 执行时注入（见 injectChromeCssEarly），
           //      这是最早时机，解决「初次打开仍不透明」；这里接管它的卸载清理。
           //   2. token override 覆盖依赖该 token 的宿主样式，卸载时移除。
+          // 模态框退场动画：拦截关闭动作，先播反向缩放再放行（见函数注释）。
+          if (typeof document !== 'undefined') {
+            ctx.effect(() => {
+              installModalExitAnimation();
+              return () => { /* 监听跨重载保留，window 守卫保证只装一次 */ };
+            }, 'dsh-sea-explore-modal-exit');
+          }
+      
           if (typeof document !== 'undefined') {
             ctx.effect(() => {
               const id = 'dsh-sea-explore-chrome';
@@ -2992,10 +3139,18 @@ window.__ModuleLoader__.load({
                 style.textContent = CHROME_TRANSPARENT_CSS + SIDEBAR_LAYOUT_CSS;
                 (document.head || document.documentElement).appendChild(style);
               }
+              // 记录「当前所有者」。重载时新实例先注册（值=新 token），
+              // 旧实例的 cleanup 随后才跑——它看到 owner 已换人，就不再删这个
+              // style 节点，否则会把新实例正依赖的 CSS 一起删掉（表现为
+              // 重载后所有自定义样式失效，例如头像 tooltip hover 不出来）。
+              const ownerToken = {};
+              if (typeof window !== 'undefined') window.__dshSeaExploreChromeOwner = ownerToken;
               const previous = document.body.style.getPropertyValue('--dsw-specific-sidebar-fill');
               const previousPriority = document.body.style.getPropertyPriority('--dsw-specific-sidebar-fill');
               keepChromeTransparent();
               return () => {
+                // 只有仍是当前所有者时才做清理（正常卸载/热替换且无人接手）。
+                if (typeof window !== 'undefined' && window.__dshSeaExploreChromeOwner !== ownerToken) return;
                 style.remove();
                 if (previousPriority === 'important') {
                   document.body.style.setProperty('--dsw-specific-sidebar-fill', previous, 'important');
@@ -3014,17 +3169,6 @@ window.__ModuleLoader__.load({
               'dsh-sea-explore-chrome-transparent',
             );
           }
-      
-          // 账号昵称异步加载：订阅 account-ui/change 事件刷新 tooltip。
-          // 同时首次主动读一次（事件可能已在插件加载前发出）。
-          // 不用 setInterval——常驻定时器会挂住进程（尤其测试环境）。
-          ctx.effect(() => {
-            refreshAccountNickname();
-            if (typeof ctx.on === 'function') {
-              return ctx.on('account-ui/change', refreshAccountNickname);
-            }
-            return undefined;
-          }, 'dsh-sea-explore-account-name');
       
           // 一次注册两种语言；重复注册（热重载、重复挂载）时会抛重复错误，
           // 此时保留已有字典即可，不影响渲染。

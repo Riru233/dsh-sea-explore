@@ -11,7 +11,8 @@ function check (label, ok, detail) {
 }
 
 check('context menu does not require unpin', !/if \(unpin === null\) return;/.test(code))
-check('context menu has marker', code.includes("'data-shino-context-menu', ''"))
+check('context menu uses system menu contract', code.includes("menu.setAttribute('data-menu-material', '')")
+  && code.includes("menu.setAttribute('role', 'menu')"))
 check('context menu text fallback', code.includes("取消固定 / Unpin"))
 check('context menu uses row label', /const label = row\.getAttribute\('aria-label'\)/.test(code))
 
